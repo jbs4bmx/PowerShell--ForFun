@@ -14,10 +14,8 @@
     Author:         | Jason B. Darling
     Date:           | 07/11/2019
     Version:        | 0.1
-    Help Requests:  | Jason.Darling@qorvo.com
     Help File:      | N/A
-    Key Note:       | Self-Elevating Script. See Help File for more information
-    License:        | MIT -- https://opensource.org/licenses/MIT -- Copyright (c) 2019 JBS Solutions, LLC
+    License:        | MIT -- https://opensource.org/licenses/MIT -- Copyright (c) 2019-2025 Jason Bradley Darling
 .EXAMPLE
     None
 #>

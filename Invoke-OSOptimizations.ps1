@@ -27,13 +27,14 @@
 .NOTES
     Author         | Jason Bradley Darling
     Creation Date  | [DMY] 23.12.2021
-    Last Edit Date | [DMY] 20.07.2025
-    Version        | 0.0.10
+    Last Edit Date | [DMY] 21.07.2025
+    Version        | 0.0.11
     License        | MIT -- https://opensource.org/licenses/MIT -- Copyright (c) 2021-2025 Jason Bradley Darling
     Change Log     | 2021-04-12: Initial version created by Jason Bradley Darling.
                    | 2023-10-02: Added functionality to check and install Visual C++ runtimes.
                    | 2025-07-17: Improved logging and error handling.
                    | 2025-07-20: Corrected Visual C++ installation logic to handle different versions and arguments.
+                   | 2025-07-21: Corrected Visual C++ installation logic to ensure both x86 and x64 versions are installed correctly.
     Requirements   | PowerShell 5.1 or later, administrative privileges
     Compatibility  | Windows 10 and later
     Notes          | This script is intended for use in a corporate environment to streamline OS performance and reduce bloat.
@@ -280,7 +281,9 @@ function Invoke-VisualCRuntimesCheck {
             }
             Write-Host "Visual C++ $year is missing or outdated. Installing..."
             Start-Process -FilePath $vc.UrlX86 -ArgumentList $Arguments -Wait
+            Write-Host "Installed x86 version of Visual C++ $year"
             Start-Process -FilePath $vc.UrlX64 -ArgumentList $Arguments -Wait
+            Write-Host "Installed x64 version of Visual C++ $year"
             $summary += "VC++ $year installed"
         }
     }

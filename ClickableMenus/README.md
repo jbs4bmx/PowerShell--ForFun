@@ -1,6 +1,8 @@
 # Clickable Menus for PowerShell
 
-A PowerShell module to create very simple but mouse-clickable menus in the PowerShell console.
+A PowerShell module to create very simple, but mouse-clickable, menus in the PowerShell console.
+
+Not my handy work, but I have modified it to fit my needs.
 
 ![Example showcasing clickable menu](headerGIF.gif "Example of a clickable menu")
 
@@ -48,7 +50,7 @@ switch ($usrButtonPress.Text) {
 # After the form closes, your pre-existing checkbox Variables
 # will have been manipulated and can be checked directly:
 if ($checkboxes[0].Checked) {
-   
+
 } else {
 
 }
