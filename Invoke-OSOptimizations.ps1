@@ -187,7 +187,8 @@ function Invoke-RegistryChange {
     }
     if (-not $changeMap.ContainsKey($Path)) { $changeMap[$Path] = @{} }
     $changeMap[$Path][$Name] = @{ original = $original; new = $NewValue }
-    $summary += "$Name at $Path → original: $($original ?? 'N/A'), new: $NewValue"
+    $originalValue = if ($null -ne $original) { $original } else { "N/A" }
+    $summary += "$Name at $Path → original: $originalValue, new: $NewValue"
 
     if (-not $WhatIf) {
         New-ItemProperty -Path $Path -Name $Name -PropertyType "DWORD" -Value $NewValue -Force | Out-Null
@@ -247,7 +248,7 @@ function Invoke-VisualCRuntimesCheck {
         @{Year="2010"; Display="Microsoft Visual C++ 2010 Redistributable"; Version="10.0.40219"; UrlX86="https://download.microsoft.com/download/1/6/5/165255E7-1014-4D0A-B094-B6A430A6BFFC/vcredist_x86.exe"; UrlX64="https://download.microsoft.com/download/1/6/5/165255E7-1014-4D0A-B094-B6A430A6BFFC/vcredist_x64.exe"; Arguments = "/passive /norestart" },
         @{Year="2012"; Display="Microsoft Visual C++ 2012 Redistributable"; Version="11.0.61030"; UrlX86="https://download.microsoft.com/download/1/6/B/16B06F60-3B20-4FF2-B699-5E9B7962F9AE/VSU_4/vcredist_x86.exe"; UrlX64="https://download.microsoft.com/download/1/6/B/16B06F60-3B20-4FF2-B699-5E9B7962F9AE/VSU_4/vcredist_x64.exe"; Arguments = "/passive /norestart" },
         @{Year="2013"; Display="Microsoft Visual C++ 2013 Redistributable"; Version="12.0.40664"; UrlX86="https://aka.ms/highdpimfc2013x86enu"; UrlX64="https://aka.ms/highdpimfc2013x64enu"; Arguments = "/passive /norestart" },
-        @{Year="2015–2025"; Display="Microsoft Visual C++ 2015-2022 Redistributable"; Version="14.38.33130"; UrlX86="https://aka.ms/vs/17/release/vc_redist.x86.exe" ; UrlX64="https://aka.ms/vs/17/release/vc_redist.x64.exe"; Arguments = "/passive /norestart" }
+        @{Year="2015-2025"; Display="Microsoft Visual C++ 2015-2022 Redistributable"; Version="14.38.33130"; UrlX86="https://aka.ms/vs/17/release/vc_redist.x86.exe" ; UrlX64="https://aka.ms/vs/17/release/vc_redist.x64.exe"; Arguments = "/passive /norestart" }
     )
 
     function IsUpToDate($displayName, $targetVersion) {
@@ -335,7 +336,8 @@ function Invoke-USBSelectiveSuspend {
     powercfg.exe /setacvalueindex SCHEME_CURRENT 2a737441-1930-4402-8d77-b2bebba308a3 48e6b7a6-50f5-4782-a5d4-53bb8f07e226 $val
     powercfg.exe /setdcvalueindex SCHEME_CURRENT 2a737441-1930-4402-8d77-b2bebba308a3 48e6b7a6-50f5-4782-a5d4-53bb8f07e226 $val
     powercfg.exe /setactive SCHEME_CURRENT
-    $summary += "USB Selective Suspend set to $($Enabled ? 'Enabled' : 'Disabled')"
+    $state = if ($Enabled) { "Enabled" } else { "Disabled" }
+    $summary += "USB Selective Suspend set to $state"
 }
 
 function Invoke-WinUtilExplorerUpdate {
@@ -484,4 +486,4 @@ if ($Summarize) {
     Get-Content -Path $summaryLogPath | ForEach-Object { Write-Host $_ -ForegroundColor Cyan }
     Write-Host "======================================" -ForegroundColor Yellow
 }
-Write-Host "`nLogs saved to:`n→ JSON: $changeLogPath`n→ Summary: $summaryLogPath"
+Write-Host "`nLogs saved to:`n→ JSON: $($changeLogPath)`n→ Summary: $($summaryLogPath)`n→ Transcript: $($transcriptLogPath)" -ForegroundColor Green
