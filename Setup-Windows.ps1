@@ -56,26 +56,21 @@ function Download-ToFolder {
 
 # region ==== Install VC++ Redistributables ====
 $VcRedists = @(
-    @{ Year = "2005"; Arch = "x86"; Url = "https://download.microsoft.com/download/8/b/4/8b42259f-5d70-43f4-ac2e-4b208fd8d66a/vcredist_x86.EXE" },
-    @{ Year = "2005"; Arch = "x64"; Url = "https://download.microsoft.com/download/8/b/4/8b42259f-5d70-43f4-ac2e-4b208fd8d66a/vcredist_x64.EXE" },
-    @{ Year = "2008"; Arch = "x86"; Url = "https://download.microsoft.com/download/5/D/8/5D8C65CB-C849-4025-8E95-C3966CAFD8AE/vcredist_x86.exe" },
-    @{ Year = "2008"; Arch = "x64"; Url = "https://download.microsoft.com/download/5/D/8/5D8C65CB-C849-4025-8E95-C3966CAFD8AE/vcredist_x64.exe" },
-    @{ Year = "2010"; Arch = "x86"; Url = "https://download.microsoft.com/download/1/6/5/165255E7-1014-4D0A-B094-B6A430A6BFFC/vcredist_x86.exe" },
-    @{ Year = "2010"; Arch = "x64"; Url = "https://download.microsoft.com/download/1/6/5/165255E7-1014-4D0A-B094-B6A430A6BFFC/vcredist_x64.exe" },
-    @{ Year = "2012"; Arch = "x86"; Url = "https://download.microsoft.com/download/1/6/B/16B06F60-3B20-4FF2-B699-5E9B7962F9AE/VSU_4/vcredist_x86.exe" },
-    @{ Year = "2012"; Arch = "x64"; Url = "https://download.microsoft.com/download/1/6/B/16B06F60-3B20-4FF2-B699-5E9B7962F9AE/VSU_4/vcredist_x64.exe" },
-    @{ Year = "2013"; Arch = "x86"; Url = "https://aka.ms/highdpimfc2013x86enu" },
-    @{ Year = "2013"; Arch = "x64"; Url = "https://aka.ms/highdpimfc2013x64enu" },
-    @{ Year = "2015-2022"; Arch = "x86"; Url = "https://aka.ms/vs/17/release/vc_redist.x86.exe" },
-    @{ Year = "2015-2022"; Arch = "x64"; Url = "https://aka.ms/vs/17/release/vc_redist.x64.exe" }
+    @{ Year = "2005"; Arch = "x86"; Url = "https://download.microsoft.com/download/8/b/4/8b42259f-5d70-43f4-ac2e-4b208fd8d66a/vcredist_x86.EXE"; $Arguments = "/q" },
+    @{ Year = "2005"; Arch = "x64"; Url = "https://download.microsoft.com/download/8/b/4/8b42259f-5d70-43f4-ac2e-4b208fd8d66a/vcredist_x64.EXE"; $Arguments = "/q" },
+    @{ Year = "2008"; Arch = "x86"; Url = "https://download.microsoft.com/download/5/D/8/5D8C65CB-C849-4025-8E95-C3966CAFD8AE/vcredist_x86.exe"; $Arguments = "/qb" },
+    @{ Year = "2008"; Arch = "x64"; Url = "https://download.microsoft.com/download/5/D/8/5D8C65CB-C849-4025-8E95-C3966CAFD8AE/vcredist_x64.exe"; $Arguments = "/qb" },
+    @{ Year = "2010"; Arch = "x86"; Url = "https://download.microsoft.com/download/1/6/5/165255E7-1014-4D0A-B094-B6A430A6BFFC/vcredist_x86.exe"; $Arguments = "/passive /norestart" },
+    @{ Year = "2010"; Arch = "x64"; Url = "https://download.microsoft.com/download/1/6/5/165255E7-1014-4D0A-B094-B6A430A6BFFC/vcredist_x64.exe"; $Arguments = "/passive /norestart" },
+    @{ Year = "2012"; Arch = "x86"; Url = "https://download.microsoft.com/download/1/6/B/16B06F60-3B20-4FF2-B699-5E9B7962F9AE/VSU_4/vcredist_x86.exe"; $Arguments = "/passive /norestart" }, },
+    @{ Year = "2012"; Arch = "x64"; Url = "https://download.microsoft.com/download/1/6/B/16B06F60-3B20-4FF2-B699-5E9B7962F9AE/VSU_4/vcredist_x64.exe"; $Arguments = "/passive /norestart" }, },
+    @{ Year = "2013"; Arch = "x86"; Url = "https://aka.ms/highdpimfc2013x86enu"; $Arguments = "/passive /norestart" },
+    @{ Year = "2013"; Arch = "x64"; Url = "https://aka.ms/highdpimfc2013x64enu"; $Arguments = "/passive /norestart" },
+    @{ Year = "2015-2022"; Arch = "x86"; Url = "https://aka.ms/vs/17/release/vc_redist.x86.exe"; $Arguments = "/passive /norestart" },
+    @{ Year = "2015-2022"; Arch = "x64"; Url = "https://aka.ms/vs/17/release/vc_redist.x64.exe"; $Arguments = "/passive /norestart" }
 )
 foreach ($item in $VcRedists) {
-    switch ($item.Year) {
-        "2005" { $Arguments = "/q" }
-        "2008" { $Arguments = "/qb" }
-        default { $Arguments = "/passive /norestart" }
-    }
-    Install-Executable -Url $item.Url -Arguments $Arguments -Label "VC++ $($item.Year) $($item.Arch)"
+    Install-Executable -Url $item.Url -Arguments $item.Arguments -Label "VC++ $($item.Year) $($item.Arch)"
 }
 # endregion
 
@@ -86,19 +81,19 @@ Enable-WindowsOptionalFeature -Online -FeatureName NetFx3 -All -NoRestart
 
 # region ==== Install .NET Runtimes & SDKs ====
 $DotNetPackages = @(
-    @{ Name = ".NET Desktop Runtime 8"; Url = "https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/runtime-desktop-8.0.18-windows-x64-installer" },
-    @{ Name = ".NET Desktop Runtime 9"; Url = "https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/runtime-desktop-9.0.7-windows-x64-installer" },
-    @{ Name = ".NET SDK 8"; Url = "https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/sdk-8.0.412-windows-x64-installer" },
-    @{ Name = ".NET SDK 9"; Url = "https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/sdk-9.0.303-windows-x64-installer" }
+    @{ Name = ".NET Desktop Runtime 8"; Url = "https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/runtime-desktop-8.0.18-windows-x64-installer"; Arguments = "/install /quiet /norestart" },
+    @{ Name = ".NET Desktop Runtime 9"; Url = "https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/runtime-desktop-9.0.7-windows-x64-installer"; Arguments = "/install /quiet /norestart" },
+    @{ Name = ".NET SDK 8"; Url = "https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/sdk-8.0.412-windows-x64-installer"; Arguments = "/install /quiet /norestart" },
+    @{ Name = ".NET SDK 9"; Url = "https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/sdk-9.0.303-windows-x64-installer"; Arguments = "/install /quiet /norestart" }
 )
 foreach ($pkg in $DotNetPackages) {
-    Install-Executable -Url $pkg.Url -Label $pkg.Name
+    Install-Executable -Url $pkg.Url -ArgumentList $pkg.Arguments -Label $($pkg.Name)
 }
 # endregion
 
 # region ==== Install 7-Zip & VS Code ====
-Install-Executable -Url "https://www.7-zip.org/a/7z2500-x64.exe" -Label "7-Zip x64"
-Install-Executable -Url "https://code.visualstudio.com/sha/download?build=stable&os=win32-x64-user" -Label "Visual Studio Code x64 (User Setup)"
+Install-Executable -Url "https://www.7-zip.org/a/7z2500-x64.exe" -ArgumentList "/s" -Label "7-Zip x64"
+Install-Executable -Url "https://code.visualstudio.com/sha/download?build=stable&os=win32-x64-user" -ArgumentList "/VERYSILENT /MERGETASKS=!runcode" -Label "Visual Studio Code x64 (User Setup)"
 # endregion
 
 # region ==== Optional Software Downloads ====
