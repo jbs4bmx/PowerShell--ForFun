@@ -81,10 +81,10 @@ Enable-WindowsOptionalFeature -Online -FeatureName NetFx3 -All -NoRestart
 
 # region ==== Install .NET Runtimes & SDKs ====
 $DotNetPackages = @(
-    @{ Name = ".NET Desktop Runtime 8"; Url = "https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/runtime-desktop-8.0.18-windows-x64-installer"; Arg = "/install /quiet /norestart" },
-    @{ Name = ".NET Desktop Runtime 9"; Url = "https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/runtime-desktop-9.0.7-windows-x64-installer"; Arg = "/install /quiet /norestart" },
-    @{ Name = ".NET SDK 8"; Url = "https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/sdk-8.0.412-windows-x64-installer"; Arg = "/install /quiet /norestart" },
-    @{ Name = ".NET SDK 9"; Url = "https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/sdk-9.0.303-windows-x64-installer"; Arg = "/install /quiet /norestart" }
+    @{ Name = ".NET Desktop Runtime 8"; Url = "https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/8.0.18/windowsdesktop-runtime-8.0.18-win-x64.exe"; Arg = "/install /quiet /norestart" },
+    @{ Name = ".NET Desktop Runtime 9"; Url = "https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/9.0.7/windowsdesktop-runtime-9.0.7-win-x64.exe"; Arg = "/install /quiet /norestart" },
+    @{ Name = ".NET SDK 8"; Url = "https://builds.dotnet.microsoft.com/dotnet/Sdk/8.0.412/dotnet-sdk-8.0.412-win-x64.exe"; Arg = "/install /quiet /norestart" },
+    @{ Name = ".NET SDK 9"; Url = "https://builds.dotnet.microsoft.com/dotnet/Sdk/9.0.303/dotnet-sdk-9.0.303-win-x64.exe"; Arg = "/install /quiet /norestart" }
 )
 foreach ($pkg in $DotNetPackages) {
     Install-Executable -Url $pkg.Url -Arguments $($pkg.Arg) -Label $($pkg.Name)
@@ -92,8 +92,8 @@ foreach ($pkg in $DotNetPackages) {
 # endregion
 
 # region ==== Install 7-Zip & VS Code ====
-Install-Executable -Url "https://www.7-zip.org/a/7z2500-x64.exe" -ArgumentList "/s" -Label "7-Zip x64"
-Install-Executable -Url "https://code.visualstudio.com/sha/download?build=stable&os=win32-x64-user" -ArgumentList "/VERYSILENT /MERGETASKS=!runcode" -Label "Visual Studio Code x64 (User Setup)"
+Install-Executable -Url "https://www.7-zip.org/a/7z2500-x64.exe" -Arguments "/s" -Label "7-Zip x64"
+Install-Executable -Url "https://code.visualstudio.com/sha/download?build=stable&os=win32-x64-user" -Arguments "/VERYSILENT /MERGETASKS=!runcode" -Label "Visual Studio Code x64 (User Setup)"
 # endregion
 
 # region ==== Optional Software Downloads ====
