@@ -22,8 +22,9 @@
     None. This script does not accept any input parameters from the pipeline.
     It is designed to be run directly with the specified parameters.
 .OUTPUTS
-    C:\path\to\log\OSOptimization.log
-    C:\path\to\log\OSOptimization_Summary.txt
+    C:\path\to\logs\OptimizationChanges.json
+    C:\path\to\logs\OptimizationSummary.log
+    C:\path\to\logs\OptimizationTranscript.log
 .NOTES
     Author         | Jason Bradley Darling
     Creation Date  | [DMY] 23.12.2021
