@@ -29,13 +29,13 @@
     Author         | Jason Bradley Darling
     Creation Date  | [DMY] 23.12.2021
     Last Edit Date | [DMY] 21.07.2025
-    Version        | 0.0.11
+    Version        | 0.0.16
     License        | MIT -- https://opensource.org/licenses/MIT -- Copyright (c) 2021-2025 Jason Bradley Darling
     Change Log     | 2021-04-12: Initial version created by Jason Bradley Darling.
                    | 2023-10-02: Added functionality to check and install Visual C++ runtimes.
                    | 2025-07-17: Improved logging and error handling.
                    | 2025-07-20: Corrected Visual C++ installation logic to handle different versions and arguments.
-                   | 2025-07-21: Corrected Visual C++ installation logic to ensure both x86 and x64 versions are installed correctly.
+                   | 2025-07-21: Corrected Visual C++ installation logic to ensure both x86 and x64 versions are installed correctly. Updated logic and syntax in various functions.
     Requirements   | PowerShell 5.1 or later, administrative privileges
     Compatibility  | Windows 10 and later
     Notes          | This script is intended for use in a corporate environment to streamline OS performance and reduce bloat.
@@ -67,9 +67,9 @@ param(
     [Parameter(Mandatory=$false)]
     [switch]$DisplaySummary,
     [Parameter(Mandatory=$false)]
-    [switch]$Revert
-    #[Parameter(Mandatory=$false)]
-    #[switch]$WhatIf
+    [switch]$Revert,
+    [Parameter(Mandatory=$false)]
+    [switch]$WhatIf
 )
 
 #------------------------------------------------------------[Elevation]-----------------------------------------------------------
@@ -405,55 +405,55 @@ $summary += "Process started: $start."
 
 # Execute all registry tweaks and optimizations
 #region Memory Optimizations
-Invoke-RegistryChange "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters" "EnableBoottrace" 0
-Invoke-RegistryChange "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters" "EnablePrefetcher" 0
-Invoke-RegistryChange "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters" "EnableSuperfetch" 0
-Invoke-RegistryChange "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" "ClearPageFileAtShutdown" 0
-Invoke-RegistryChange "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" "DisablePagingExecutive" 1
-Invoke-RegistryChange "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" "LargeSystemCache" 1
+Invoke-RegistryChange -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters" -Name "EnableBoottrace" -NewValue 0
+Invoke-RegistryChange -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters" -Name "EnablePrefetcher" -NewValue 0
+Invoke-RegistryChange -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters" -Name "EnableSuperfetch" -NewValue 0
+Invoke-RegistryChange -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "ClearPageFileAtShutdown" -NewValue 0
+Invoke-RegistryChange -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "DisablePagingExecutive" -NewValue 1
+Invoke-RegistryChange -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "LargeSystemCache" -NewValue 1
 #endregion
 
 #region Visual Performance
-Invoke-RegistryChange "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" "TdrDdiDelay" 10
-Invoke-RegistryChange "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" "TdrDelay" 10
-Invoke-RegistryChange "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" "VisualFXSetting" 3
-Invoke-RegistryChange "HKCU:\Control Panel\Desktop\WindowMetrics" "MinAnimate" 0
-Invoke-RegistryChange "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "ListviewAlphaSelect" 0
-Invoke-RegistryChange "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "ListviewShadow" 1
-Invoke-RegistryChange "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "TaskbarAnimations" 0
-Invoke-RegistryChange "HKCU:\Control Panel\Desktop" "MenuShowDelay" 20
+Invoke-RegistryChange -Path "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" -Name "TdrDdiDelay" -NewValue 10
+Invoke-RegistryChange -Path "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" -Name "TdrDelay" -NewValue 10
+Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "VisualFXSetting" -NewValue 3
+Invoke-RegistryChange -Path "HKCU:\Control Panel\Desktop\WindowMetrics" -Name "MinAnimate" -NewValue 0
+Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ListviewAlphaSelect" -NewValue 0
+Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ListviewShadow" -NewValue 1
+Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarAnimations" -NewValue 0
+Invoke-RegistryChange -Path "HKCU:\Control Panel\Desktop" -Name "MenuShowDelay" -NewValue 20
 #endregion
 
 #region Network Optimizations
-Invoke-RegistryChange "HKLM:\System\CurrentControlSet\Services\Tcpip\Parameters" "DefaultTTL" 64
-Invoke-RegistryChange "HKLM:\System\CurrentControlSet\Services\Tcpip\Parameters" "MaxUserPort" 65534
-Invoke-RegistryChange "HKLM:\System\CurrentControlSet\Services\Tcpip\Parameters" "TcpTimedWaitDelay" 30
-Invoke-RegistryChange "HKLM:\Software\Policies\Microsoft\Windows\Psched" "NonBestEffortLimit" 0
-Invoke-RegistryChange "HKLM:\System\CurrentControlSet\Services\LanmanServer\Parameters" "Size" 3
-Invoke-RegistryChange "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" "NetworkThrottlingIndex" 4294967295
-Invoke-RegistryChange "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" "SystemResponsiveness" 10
-Invoke-RegistryChange "HKLM:\Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_MAXCONNECTIONSPER1_0SERVER" "explorer.exe" 10
-Invoke-RegistryChange "HKLM:\Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_MAXCONNECTIONSPERSERVER" "explorer.exe" 10
+Invoke-RegistryChange -Path "HKLM:\System\CurrentControlSet\Services\Tcpip\Parameters" -Name "DefaultTTL" -NewValue 64
+Invoke-RegistryChange -Path "HKLM:\System\CurrentControlSet\Services\Tcpip\Parameters" -Name "MaxUserPort" -NewValue 65534
+Invoke-RegistryChange -Path "HKLM:\System\CurrentControlSet\Services\Tcpip\Parameters" -Name "TcpTimedWaitDelay" -NewValue 30
+Invoke-RegistryChange -Path "HKLM:\Software\Policies\Microsoft\Windows\Psched" -Name "NonBestEffortLimit" -NewValue 0
+Invoke-RegistryChange -Path "HKLM:\System\CurrentControlSet\Services\LanmanServer\Parameters" -Name "Size" -NewValue 3
+Invoke-RegistryChange -Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" -Name "NetworkThrottlingIndex" -NewValue 4294967295
+Invoke-RegistryChange -Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" -Name "SystemResponsiveness" -NewValue 10
+Invoke-RegistryChange -Path "HKLM:\Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_MAXCONNECTIONSPER1_0SERVER" -Name "explorer.exe" -NewValue 10
+Invoke-RegistryChange -Path "HKLM:\Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_MAXCONNECTIONSPERSERVER" -Name "explorer.exe" -NewValue 10
 #endregion
 
 #region Windows Update Tweaks
-Invoke-RegistryChange "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate" "DisableDualScan" 0
-Invoke-RegistryChange "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" "AllowMUUpdateService" 1
-Invoke-RegistryChange "HKLM:\SOFTWARE\Microsoft\.NET" "BlockMU" 0
+Invoke-RegistryChange -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate" -Name "DisableDualScan" -NewValue 0
+Invoke-RegistryChange -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -Name "AllowMUUpdateService" -NewValue 1
+Invoke-RegistryChange -Path "HKLM:\SOFTWARE\Microsoft\.NET" -Name "BlockMU" 0
 #endregion
 
 #region Security Settings
-Invoke-RegistryChange "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" "FeatureSettingsOverride" 72
-Invoke-RegistryChange "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" "FeatureSettingsOverrideMask" 3
+Invoke-RegistryChange -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "FeatureSettingsOverride" -NewValue 72
+Invoke-RegistryChange -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "FeatureSettingsOverrideMask" -NewValue 3
 #endregion
 
 #region Misc Performance
-Invoke-RegistryChange "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Serialize" "StartupDelayInMSec" 0
-Invoke-RegistryChange "HKCU:\SOFTWARE\Microsoft\Personalization\Settings" "AcceptedPrivacyPolicy" 0
-Invoke-RegistryChange "HKCU:\SOFTWARE\Microsoft\InputPersonalization" "RestrictImplicitTextCollection" 1
-Invoke-RegistryChange "HKCU:\SOFTWARE\Microsoft\InputPersonalization" "RestrictImplicitInkCollection" 1
-Invoke-RegistryChange "HKCU:\SOFTWARE\Microsoft\InputPersonalization\TrainedDataStore" "HarvestContacts" 0
-Invoke-RegistryChange "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" "AllowCortana" 0
+Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Serialize" -Name "StartupDelayInMSec" -NewValue 0
+Invoke-RegistryChange -Path "HKCU:\SOFTWARE\Microsoft\Personalization\Settings" -Name "AcceptedPrivacyPolicy" -NewValue 0
+Invoke-RegistryChange -Path "HKCU:\SOFTWARE\Microsoft\InputPersonalization" -Name "RestrictImplicitTextCollection" -NewValue 1
+Invoke-RegistryChange -Path "HKCU:\SOFTWARE\Microsoft\InputPersonalization" -Name "RestrictImplicitInkCollection" -NewValue 1
+Invoke-RegistryChange -Path "HKCU:\SOFTWARE\Microsoft\InputPersonalization\TrainedDataStore" -Name "HarvestContacts" -NewValue 0
+Invoke-RegistryChange -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Name "AllowCortana" -NewValue 0
 #endregion
 
 #region Subroutines
