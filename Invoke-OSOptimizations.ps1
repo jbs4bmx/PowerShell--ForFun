@@ -163,7 +163,7 @@ if ($Revert) {
             $orig = $revertData[$path][$name].original
             if ($null -ne $orig) {
                 Set-ItemProperty -Path $path -Name $name -Value $orig -Force
-                $summary += "Reverted: $name at $path → $orig"
+                $summary += "Reverted: $name at $path --> $orig"
             }
         }
     }
@@ -203,7 +203,7 @@ function Invoke-RegistryChange {
     $changeMap[$Path][$Name] = @{ original = $original; new = $NewValue }
 
     $originalValue = if ($null -ne $original) { $original } else { "N/A" }
-    $summary += "$Name at $Path → original: $originalValue, new: $NewValue"
+    $summary += "$Name at $Path --> original: $originalValue, new: $NewValue"
 
     if (-not $WhatIf) {
         New-ItemProperty -Path $Path -Name $Name -PropertyType "DWORD" -Value $NewValue -Force | Out-Null
@@ -537,4 +537,4 @@ if ($Summarize) {
     Get-Content -Path $summaryLogPath | ForEach-Object { Write-Host $_ -ForegroundColor Cyan }
     Write-Host "======================================" -ForegroundColor Yellow
 }
-Write-Host "`nLogs saved to:`n→ JSON: $($changeLogPath)`n→ Summary: $($summaryLogPath)`n→ Transcript: $($transcriptLogPath)" -ForegroundColor Green
+Write-Host "`nLogs saved to:`n--> JSON: $($changeLogPath)`n--> Summary: $($summaryLogPath)`n--> Transcript: $($transcriptLogPath)" -ForegroundColor Green
