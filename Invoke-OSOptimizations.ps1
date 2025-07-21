@@ -65,7 +65,11 @@ param(
     [Parameter(Mandatory=$false)]
     [switch]$GetCurrentUser,
     [Parameter(Mandatory=$false)]
-    [switch]$DisplaySummary
+    [switch]$DisplaySummary,
+    [Parameter(Mandatory=$false)]
+    [switch]$Revert
+    #[Parameter(Mandatory=$false)]
+    #[switch]$WhatIf
 )
 
 #------------------------------------------------------------[Elevation]-----------------------------------------------------------
