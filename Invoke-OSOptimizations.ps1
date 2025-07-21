@@ -243,15 +243,21 @@ function Invoke-AppReinstallBlock {
 
 function Invoke-VisualCRuntimesCheck {
     $vcRuntimes=@(
-        @{Year="2005"; Display="Microsoft Visual C++ 2005 Redistributable"; Version="8.0.61001"; UrlX86="https://download.microsoft.com/download/8/b/4/8b42259f-5d70-43f4-ac2e-4b208fd8d66a/vcredist_x86.EXE"; UrlX64="https://download.microsoft.com/download/8/b/4/8b42259f-5d70-43f4-ac2e-4b208fd8d66a/vcredist_x64.EXE"; Arguments = "/q" },
-        @{Year="2008"; Display="Microsoft Visual C++ 2008 Redistributable"; Version="9.0.30729.7523"; UrlX86="https://download.microsoft.com/download/5/D/8/5D8C65CB-C849-4025-8E95-C3966CAFD8AE/vcredist_x86.exe"; UrlX64="https://download.microsoft.com/download/5/D/8/5D8C65CB-C849-4025-8E95-C3966CAFD8AE/vcredist_x64.exe"; Arguments = "/qb" },
-        @{Year="2010"; Display="Microsoft Visual C++ 2010 Redistributable"; Version="10.0.40219"; UrlX86="https://download.microsoft.com/download/1/6/5/165255E7-1014-4D0A-B094-B6A430A6BFFC/vcredist_x86.exe"; UrlX64="https://download.microsoft.com/download/1/6/5/165255E7-1014-4D0A-B094-B6A430A6BFFC/vcredist_x64.exe"; Arguments = "/passive /norestart" },
-        @{Year="2012"; Display="Microsoft Visual C++ 2012 Redistributable"; Version="11.0.61030"; UrlX86="https://download.microsoft.com/download/1/6/B/16B06F60-3B20-4FF2-B699-5E9B7962F9AE/VSU_4/vcredist_x86.exe"; UrlX64="https://download.microsoft.com/download/1/6/B/16B06F60-3B20-4FF2-B699-5E9B7962F9AE/VSU_4/vcredist_x64.exe"; Arguments = "/passive /norestart" },
-        @{Year="2013"; Display="Microsoft Visual C++ 2013 Redistributable"; Version="12.0.40664"; UrlX86="https://aka.ms/highdpimfc2013x86enu"; UrlX64="https://aka.ms/highdpimfc2013x64enu"; Arguments = "/passive /norestart" },
-        @{Year="2015-2025"; Display="Microsoft Visual C++ 2015-2022 Redistributable"; Version="14.38.33130"; UrlX86="https://aka.ms/vs/17/release/vc_redist.x86.exe" ; UrlX64="https://aka.ms/vs/17/release/vc_redist.x64.exe"; Arguments = "/passive /norestart" }
+        @{ Year = "2005"; Arch = "x86"; Version="8.0.61001"; Display="Microsoft Visual C++ 2005 Redistributable"; Url = "https://download.microsoft.com/download/8/b/4/8b42259f-5d70-43f4-ac2e-4b208fd8d66a/vcredist_x86.EXE"; $Arg = "/q" },
+        @{ Year = "2005"; Arch = "x64"; Version="8.0.61000"; Display="Microsoft Visual C++ 2005 Redistributable (x64)"; Url = "https://download.microsoft.com/download/8/b/4/8b42259f-5d70-43f4-ac2e-4b208fd8d66a/vcredist_x64.EXE"; $Arg = "/q" },
+        @{ Year = "2008"; Arch = "x86"; Version="9.0.30729.6161"; Display="Microsoft Visual C++ 2008 Redistributable x86"; Url = "https://download.microsoft.com/download/5/D/8/5D8C65CB-C849-4025-8E95-C3966CAFD8AE/vcredist_x86.exe"; $Arg = "/qb" },
+        @{ Year = "2008"; Arch = "x64"; Version="9.0.30729.6161"; Display="Microsoft Visual C++ 2008 Redistributable x64"; Url = "https://download.microsoft.com/download/5/D/8/5D8C65CB-C849-4025-8E95-C3966CAFD8AE/vcredist_x64.exe"; $Arg = "/qb" },
+        @{ Year = "2010"; Arch = "x86"; Version="10.0.40219"; Display="Microsoft Visual C++ 2010 Redistributable (x86)"; Url = "https://download.microsoft.com/download/1/6/5/165255E7-1014-4D0A-B094-B6A430A6BFFC/vcredist_x86.exe"; $Arg = "/passive /norestart" },
+        @{ Year = "2010"; Arch = "x64"; Version="10.0.40219"; Display="Microsoft Visual C++ 2010 Redistributable (x64)"; Url = "https://download.microsoft.com/download/1/6/5/165255E7-1014-4D0A-B094-B6A430A6BFFC/vcredist_x64.exe"; $Arg = "/passive /norestart" },
+        @{ Year = "2012"; Arch = "x86"; Version="11.0.61030.0"; Display="Microsoft Visual C++ 2012 Redistributable (x86)"; Url = "https://download.microsoft.com/download/1/6/B/16B06F60-3B20-4FF2-B699-5E9B7962F9AE/VSU_4/vcredist_x86.exe"; $Arg = "/passive /norestart" },
+        @{ Year = "2012"; Arch = "x64"; Version="11.0.61030.0"; Display="Microsoft Visual C++ 2012 Redistributable (x64)"; Url = "https://download.microsoft.com/download/1/6/B/16B06F60-3B20-4FF2-B699-5E9B7962F9AE/VSU_4/vcredist_x64.exe"; $Arg = "/passive /norestart" },
+        @{ Year = "2013"; Arch = "x86"; Version="12.0.40664.0"; Display="Microsoft Visual C++ 2013 Redistributable (x86)"; Url = "https://aka.ms/highdpimfc2013x86enu"; $Arg = "/passive /norestart" },
+        @{ Year = "2013"; Arch = "x64"; Version="12.0.40664.0"; Display="Microsoft Visual C++ 2013 Redistributable (x64)"; Url = "https://aka.ms/highdpimfc2013x64enu"; $Arg = "/passive /norestart" },
+        @{ Year = "2015-2022"; Arch = "x86"; Version="14.44.35211.0"; Display="Microsoft Visual C++ 2015-2022 Redistributable (x86)"; Url = "https://aka.ms/vs/17/release/vc_redist.x86.exe"; $Arg = "/passive /norestart" },
+        @{ Year = "2015-2022"; Arch = "x64"; Version="14.44.35211.0"; Display="Microsoft Visual C++ 2015-2022 Redistributable (x64)"; Url = "https://aka.ms/vs/17/release/vc_redist.x64.exe"; $Arg = "/passive /norestart" }
     )
 
-    function IsUpToDate($displayName, $targetVersion) {
+    function Get-IsVCppUpToDate($displayName, $targetVersion) {
         $regPaths = @(
             "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
             "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
@@ -269,24 +275,30 @@ function Invoke-VisualCRuntimesCheck {
         return $false
     }
 
+    function Install-VCppExecutable($Url, $Arguments, $Label) {
+        try {
+            $Temp = "$env:TEMP\$($Label.Replace(' ', '_')).exe"
+            Invoke-WebRequest -Uri $Url -OutFile $Temp
+            Start-Process -FilePath $Temp -ArgumentList $Arguments -Wait -Verb RunAs
+            Remove-Item $Temp -Force
+        } catch {
+            Write-Warning "Failed to install ${Label}: $_"
+            $summary += "Failed to install ${Label}: $_"
+        }
+    }
+
     Write-Host "`n--- Checking Visual C++ Runtimes ---"
     foreach ($vc in $vcRuntimes) {
-        $year = $vc.Year
-        $display = $vc.Display
-        $version = $vc.Version
-        $Arguments = $vc.Arguments
-
-        Write-Host "Checking Visual C++ $year ($version)..."
-        if (IsUpToDate -displayName $display -targetVersion $version) {
-            Write-Host "Visual C++ $year is up to date."
-            $summary += "VC++ $year already up to date"
+        $locale = "Visual C++ Runtime Redistributable $($vc.Year) $($vc.Arch)"
+        $mini = "VC++ $($vc.Year) $($vc.Arch)"
+        Write-Host "Checking $locale ($($vc.Version))..."
+        if ( Get-IsVCppUpToDate -displayName $($vc.Display) -targetVersion $($vc.Version) ) {
+            Write-Host "$locale is up to date."
+            $summary += "$locale is already up to date"
         } else {
-            Write-Host "Visual C++ $year is missing or outdated. Installing..."
-            Start-Process -FilePath $vc.UrlX86 -ArgumentList $Arguments -Wait
-            Write-Host "Installed x86 version of Visual C++ $year"
-            Start-Process -FilePath $vc.UrlX64 -ArgumentList $Arguments -Wait
-            Write-Host "Installed x64 version of Visual C++ $year"
-            $summary += "VC++ $year installed"
+            Write-Host "$locale is missing or outdated. Installing..."
+            Install-VCppExecutable -Url $vc.Url -Arguments $($vc.Arguments) -Label "$($mini)"
+            $summary += "$locale installed"
         }
     }
 }
