@@ -11,7 +11,7 @@
   - Logs all actions and tracks skipped steps
 #>
 
-# region ==== Configuration ====
+#region ==== Configuration ====
 $DownloadPath = "$env:USERPROFILE\Downloads"
 $OptionalDownloads = @{
     Gimp               = $true
@@ -24,9 +24,9 @@ $OptionalDownloads = @{
     PowerShell7        = $true
     GitHubDesktop      = $true
 }
-# endregion
+#endregion
 
-# region ==== Helper Functions ====
+#region ==== Helper Functions ====
 function Install-Executable {
     param ($Url, $Arguments, $Label)
     try {
@@ -51,9 +51,10 @@ function Download-ToFolder {
         Write-Warning "Failed to download ${Label}: $_"
     }
 }
-# endregion
+#endregion
 
-# region ==== Install VC++ Redistributables ====
+#region ==== Install VC++ Redistributables ====
+Write-Host "`nInstalling Visual C++ Redistributables..."
 $VcRedists = @(
     @{ Year = "2005"; Arch = "x86"; Url = "https://download.microsoft.com/download/8/b/4/8b42259f-5d70-43f4-ac2e-4b208fd8d66a/vcredist_x86.EXE"; $Arg = "/q" },
     @{ Year = "2005"; Arch = "x64"; Url = "https://download.microsoft.com/download/8/b/4/8b42259f-5d70-43f4-ac2e-4b208fd8d66a/vcredist_x64.EXE"; $Arg = "/q" },
@@ -71,14 +72,15 @@ $VcRedists = @(
 foreach ($item in $VcRedists) {
     Install-Executable -Url $item.Url -Arguments $($item.Arg) -Label "VC++ Runtime $($item.Year) $($item.Arch)"
 }
-# endregion
+#endregion
 
-# region ==== Enable .NET 3.5 Feature ====
+#region ==== Enable .NET 3.5 Feature ====
 Write-Host "`nEnabling .NET 3.5..."
 Enable-WindowsOptionalFeature -Online -FeatureName NetFx3 -All -NoRestart
-# endregion
+#endregion
 
-# region ==== Install .NET Runtimes & SDKs ====
+#region ==== Install .NET Runtimes & SDKs ====
+Write-Host "`nInstalling .NET Runtimes and SDKs..."
 $DotNetPackages = @(
     @{ Name = ".NET Desktop Runtime 8"; Url = "https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/8.0.18/windowsdesktop-runtime-8.0.18-win-x64.exe"; Arg = "/install /quiet /norestart" },
     @{ Name = ".NET Desktop Runtime 9"; Url = "https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/9.0.7/windowsdesktop-runtime-9.0.7-win-x64.exe"; Arg = "/install /quiet /norestart" },
@@ -88,24 +90,27 @@ $DotNetPackages = @(
 foreach ($pkg in $DotNetPackages) {
     Install-Executable -Url $pkg.Url -Arguments $($pkg.Arg) -Label $($pkg.Name)
 }
-# endregion
+#endregion
 
-# region ==== Install 7-Zip & VS Code ====
-Install-Executable -Url "https://www.7-zip.org/a/7z2500-x64.exe" -Arguments "/s" -Label "7-Zip x64"
+#region ==== Install 7-Zip & VS Code ====
+Write-Host "`nInstalling essential software..."
+Install-Executable -Url "https://www.7-zip.org/a/7z2500-x64.exe" -Arguments "/S" -Label "7-Zip x64"
 Install-Executable -Url "https://code.visualstudio.com/sha/download?build=stable&os=win32-x64-user" -Arguments "/VERYSILENT /MERGETASKS=!runcode" -Label "Visual Studio Code x64 (User Setup)"
-# endregion
+#endregion
 
-# region ==== Optional Software Downloads ====
+#region ==== Optional Software Downloads ====
+#TO-DO: Double Check URLs marked with "#"
+Write-Host "`nDownloading optional software..."
 $Downloads = @{
-    Gimp           = "https://download.gimp.org/pub/gimp/v2.10/windows/gimp-2.10.34-setup.exe"
-    Inkscape       = "https://media.inkscape.org/dl/resources/file/inkscape-1.3-x64.exe"
+    #Gimp           = "https://download.gimp.org/gimp/v3.0/windows/gimp-3.0.4-setup.exe"
+    #Inkscape       = "https://inkscape.org/gallery/item/56340/inkscape-1.4.2_2025-05-13_f4327f4-x64.msi"
     VSCommunity    = "https://aka.ms/vs/17/release/vs_community.exe"
     Steam          = "https://cdn.cloudflare.steamstatic.com/client/installer/SteamSetup.exe"
-    ATLauncher     = "https://www.atlauncher.com/download/ATLauncher.exe"
-    Chrome         = "https://dl.google.com/chrome/install/ChromeSetup.exe"
+    #ATLauncher     = "https://atlauncher.com/download/exe-setup/ATLauncher-setup-1.3.0.0.exe"
+    #Chrome         = "https://dl.google.com/chrome/install/ChromeSetup.exe"
     VLC            = "https://get.videolan.org/vlc/3.0.20/win64/vlc-3.0.20-win64.exe"
-    PowerShell7    = "https://github.com/PowerShell/PowerShell/releases/latest/download/PowerShell-7.4.0-win-x64.msi"
-    GitHubDesktop  = "https://central.github.com/deployments/desktop/desktop/latest/win32"
+    #PowerShell7    = "https://github.com/PowerShell/PowerShell/releases/latest/download/PowerShell-7.4.0-win-x64.msi"
+    #GitHubDesktop  = "https://central.github.com/deployments/desktop/desktop/latest/win32/GitHubDesktopSetup-x64.exe"
 }
 
 foreach ($key in $OptionalDownloads.Keys) {
@@ -115,3 +120,4 @@ foreach ($key in $OptionalDownloads.Keys) {
         Write-Host "Skipped download for $key"
     }
 }
+#endregion
