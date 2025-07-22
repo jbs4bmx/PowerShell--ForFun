@@ -29,7 +29,7 @@
     Author         | Jason Bradley Darling
     Creation Date  | [DMY] 23.12.2021
     Last Edit Date | [DMY] 21.07.2025
-    Version        | 0.0.19
+    Version        | 0.0.21
     License        | MIT -- https://opensource.org/licenses/MIT -- Copyright (c) 2021-2025 Jason Bradley Darling
     Change Log     | 2021-04-12: Initial version created by Jason Bradley Darling.
                    | 2023-10-02: Added functionality to check and install Visual C++ runtimes.
@@ -184,16 +184,15 @@ function Invoke-LogStatus {
         Add-Content -Path $Log -Value " "
     }
 }
-
 function Invoke-RegistryChange {
     param (
         [string]$Path,
         [string]$Name,
         [int]$NewValue
     )
-    Write-Host "`n--- Applying registry change at $Path for $Name ---"
+    Write-Host "Applying registry change at $Path for $Name with value $NewValue"
     try {
-        $original = Get-ItemPropertyValue -Path $Path -Name $Name -ErrorAction SilentlyContinue
+        $original = Get-ItemPropertyValue -Path $Path -Name $Name
     } catch {
         $original = $null
     }
@@ -209,7 +208,6 @@ function Invoke-RegistryChange {
         New-ItemProperty -Path $Path -Name $Name -PropertyType "DWORD" -Value $NewValue -Force | Out-Null
     }
 }
-
 function Invoke-NonCriticalServicesDisablement {
     Write-Host "`n--- Disabling non-critical services for user: $Username ---"
     $services = @("Fax", "XblGameSave", "WSearch", "DiagTrack", "RetailDemo")
@@ -222,7 +220,6 @@ function Invoke-NonCriticalServicesDisablement {
         }
     }
 }
-
 function Invoke-AppCleanup {
     Write-Host "`n--- Removing non-essential apps for user: $Username ---"
     $apps = @("Candy", "Cortana", "eBay", "Facebook", "FeedbackHub", "Netflix", "Roblox", "Skype", "Spotify", "TikTok", "Twitter", "Weather", "Xbox", "YouTube")
@@ -234,7 +231,6 @@ function Invoke-AppCleanup {
         }
     }
 }
-
 function Invoke-AppReinstallBlock {
     Write-Host "`n--- Blocking app reinstallation for user: $Username ---"
     try {
@@ -255,7 +251,6 @@ function Invoke-AppReinstallBlock {
     Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent" -Name "DisableWindowsConsumerFeatures" -Value 1 -Type DWord -Force
     $summary += "Blocked app reinstall for user: $Username"
 }
-
 function Invoke-VisualCRuntimesCheck {
     $vcRuntimes=@(
         @{ Year = "2005"; Arch = "x86"; Version="8.0.61001"; Display="Microsoft Visual C++ 2005 Redistributable"; Url = "https://download.microsoft.com/download/8/b/4/8b42259f-5d70-43f4-ac2e-4b208fd8d66a/vcredist_x86.EXE"; $Arg = "/q" },
@@ -317,7 +312,6 @@ function Invoke-VisualCRuntimesCheck {
         }
     }
 }
-
 function Invoke-NetworkHardening {
     Write-Host "`n--- Applying network hardening settings ---"
     New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" -Name "NetworkThrottlingIndex" -PropertyType "DWORD" -Value 0xFFFFFFFF -Force
@@ -330,7 +324,6 @@ function Invoke-NetworkHardening {
     netsh int tcp set supplemental Template=Internet CongestionProvider=bbr2
     $summary += "Network hardening complete"
 }
-
 function Invoke-TelemetryDisabling {
     Write-Host "`n--- Disabling telemetry and data collection ---"
     $telemetryPaths = @(
@@ -355,7 +348,6 @@ function Invoke-TelemetryDisabling {
         }
     }
 }
-
 function Invoke-USBSelectiveSuspend {
     Write-Host "`n--- Setting USB Selective Suspend ---"
     param ([bool]$Enabled = $false)
@@ -371,7 +363,6 @@ function Invoke-USBSelectiveSuspend {
     powercfg.exe /setactive SCHEME_CURRENT
     $summary += "USB Selective Suspend set to $state"
 }
-
 function Invoke-WinUtilExplorerUpdate {
     Write-Host "`n--- Refreshing Dektop & Environment ---"
     [NativeMethods]::SendMessage($HWND_BROADCAST, $WM_SETTINGCHANGE, [IntPtr]::Zero, [IntPtr]::Zero)
@@ -379,7 +370,6 @@ function Invoke-WinUtilExplorerUpdate {
     #Invoke-Expression $code  # Placeholder for broadcast refresh; use SendMessageTimeout if needed
     $summary += "Dektop & Environment refreshed"
 }
-
 function Invoke-PowerPlan {
     Write-Host "`n--- Setting optimal power plan ---"
     $type = Get-ChassisType
@@ -396,7 +386,6 @@ function Invoke-PowerPlan {
     }
     $summary += "Power plan set to '$plan'"
 }
-
 function Get-ChassisType {
     # Returns "laptop" or "desktop"
     # Used to determine optimal power plan for the system
