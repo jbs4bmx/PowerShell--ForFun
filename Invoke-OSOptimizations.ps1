@@ -29,7 +29,7 @@
     Author         | Jason Bradley Darling
     Creation Date  | [DMY] 23.12.2021
     Last Edit Date | [DMY] 21.07.2025
-    Version        | 0.0.17
+    Version        | 0.0.19
     License        | MIT -- https://opensource.org/licenses/MIT -- Copyright (c) 2021-2025 Jason Bradley Darling
     Change Log     | 2021-04-12: Initial version created by Jason Bradley Darling.
                    | 2023-10-02: Added functionality to check and install Visual C++ runtimes.
@@ -193,7 +193,7 @@ function Invoke-RegistryChange {
     )
     Write-Host "`n--- Applying registry change at $Path for $Name ---"
     try {
-        $original = Get-ItemPropertyValue -Path $Path -Name $Name -ErrorAction Stop
+        $original = Get-ItemPropertyValue -Path $Path -Name $Name -ErrorAction SilentlyContinue
     } catch {
         $original = $null
     }
@@ -422,7 +422,6 @@ Clear-Host
 Invoke-LogStatus -Log $summaryLogPath
 Start-Transcript -Path $transcriptLogPath -Append
 Write-Host "Processing started: $start" -ForegroundColor Yellow
-$summary += "Process started: $start."
 
 # Execute all registry tweaks and optimizations
 #region Memory Optimizations
@@ -507,24 +506,29 @@ Invoke-WinUtilExplorerUpdate
 Invoke-PowerPlan
 #endregion
 
-# Save logs
+# Save changes to the change log
 $changeMap | ConvertTo-Json -Depth 5 | Set-Content -Path $changeLogPath
-$summary   | Set-Content -Path $summaryLogPath
 
 if ($WhatIf) { Write-Host "Dry run mode: no changes applied." }
 
 # --- End Processing ---
 $end = $([DateTime]::Now)
 Write-Host "Processing ended: $end`n" -ForegroundColor Yellow
-$summary += "Processing ended: $end"
 
 # --- Write Summary Report ---
 $summaryHeader = @(
-    "=== OS Optimization Summary ===",
-    "Timestamp: $end",
-    ""
+    "============================================",
+    "OS Optimization Summary",
+    "Process Started: $start",
+    "============================================"
 )
-$summaryHeader + $summary | Set-Content -Path $summaryLogPath -Encoding UTF8
+$summaryEnding = @(
+    "============================================",
+    "Process Ended: $end",
+    "Total Duration: $((New-TimeSpan -Start $start -End $end).TotalMinutes) minutes",
+    "============================================"
+)
+$summaryHeader + $summary + $summaryEnding | Set-Content -Path $summaryLogPath -Encoding UTF8
 
 # --- End Logging ---
 Stop-Transcript
