@@ -28,14 +28,15 @@
 .NOTES
     Author         | Jason Bradley Darling
     Creation Date  | [DMY] 23.12.2021
-    Last Edit Date | [DMY] 21.07.2025
-    Version        | 0.0.21
+    Last Edit Date | [DMY] 22.07.2025
+    Version        | 0.0.24
     License        | MIT -- https://opensource.org/licenses/MIT -- Copyright (c) 2021-2025 Jason Bradley Darling
     Change Log     | 2021-04-12: Initial version created by Jason Bradley Darling.
                    | 2023-10-02: Added functionality to check and install Visual C++ runtimes.
                    | 2025-07-17: Improved logging and error handling.
                    | 2025-07-20: Corrected Visual C++ installation logic to handle different versions and arguments.
                    | 2025-07-21: Corrected Visual C++ installation logic to ensure both x86 and x64 versions are installed correctly. Updated logic and syntax in various functions.
+                   | 2025-07-22: Added various performance optimizations. Updated logic for some functions.
     Requirements   | PowerShell 5.1 or later, administrative privileges
     Compatibility  | Windows 10 and later
     Notes          | This script is intended for use in a corporate environment to streamline OS performance and reduce bloat.
@@ -188,7 +189,8 @@ function Invoke-RegistryChange {
     param (
         [string]$Path,
         [string]$Name,
-        [int]$NewValue
+        [int]$NewValue,
+        [string]$Type
     )
     Write-Host "Applying registry change at $Path for $Name with value $NewValue"
     try {
@@ -205,7 +207,7 @@ function Invoke-RegistryChange {
     $summary += "$Name at $Path --> original: $originalValue, new: $NewValue"
 
     if (-not $WhatIf) {
-        New-ItemProperty -Path $Path -Name $Name -PropertyType "DWORD" -Value $NewValue -Force | Out-Null
+        New-ItemProperty -Path $Path -Name $Name -PropertyType $Type -Value $NewValue -Force | Out-Null
     }
 }
 function Invoke-NonCriticalServicesDisablement {
@@ -292,8 +294,8 @@ function Invoke-VisualCRuntimesCheck {
             Start-Process -FilePath $Temp -ArgumentList $Arguments -Wait -Verb RunAs
             Remove-Item $Temp -Force
         } catch {
-            Write-Warning "Failed to install ${Label}: $_"
-            $summary += "Failed to install ${Label}: $_"
+            Write-Warning "Failed to install $($Label): $_"
+            $summary += "Failed to install $($Label): $_"
         }
     }
 
@@ -324,29 +326,26 @@ function Invoke-NetworkHardening {
     netsh int tcp set supplemental Template=Internet CongestionProvider=bbr2
     $summary += "Network hardening complete"
 }
-function Invoke-TelemetryDisabling {
-    Write-Host "`n--- Disabling telemetry and data collection ---"
-    $telemetryPaths = @(
-        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
-        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"
-    )
+function Invoke-NetworkOptimizations {
+    Write-Host "`n--- Applying network optimizations ---"
+    $baseKey = 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces'
 
-    $values = @{
-        "AllowTelemetry" = 0
-        "AllowCortana"   = 0
-    }
+    # Get all subkeys under Interfaces
+    Get-ChildItem -Path $baseKey | ForEach-Object {
+        $interfaceKey = $_.PSPath
 
-    foreach ($keyPath in $telemetryPaths) {
-        foreach ($name in $values.Keys) {
-            try {
-                Set-ItemProperty -Path $keyPath -Name $name -Value $values[$name] -Type DWord -Force
-                $summary += "Telemetry setting $name disabled in $keyPath"
-            } catch {
-                Write-Warning "Failed to set $name in $keyPath"
-                $summary += "Failed to disable $name in $keyPath"
-            }
+        try {
+            Set-ItemProperty -Path $interfaceKey -Name 'TcpAckFrequency' -Value 1 -Type DWord -EA SilentlyContinue
+            Set-ItemProperty -Path $interfaceKey -Name 'TCPNoDelay' -Value 1 -Type DWord -EA SilentlyContinue
+            Write-Host "Updated $interfaceKey with TcpAckFrequency and TCPNoDelay = 1" -ForegroundColor Green
+        } catch {
+            Write-Warning "Failed to update $($interfaceKey): $_"
         }
     }
+
+    # Disable NetBIOS over TCP/IP
+    Get-WmiObject -Class Win32_NetworkAdapterConfiguration | Where-Object { $_.IPEnabled } | ForEach-Object { $_.SetTcpipNetBIOS(0) }
+    $summary += "Network optimizations applied"
 }
 function Invoke-USBSelectiveSuspend {
     Write-Host "`n--- Setting USB Selective Suspend ---"
@@ -416,25 +415,25 @@ Write-Host "Processing started: $start" -ForegroundColor Yellow
 #region Memory Optimizations
 Write-Host "`n--- Applying memory optimizations ---"
 if (-not $WhatIf) {
-    Invoke-RegistryChange -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters" -Name "EnableBoottrace" -NewValue 0
-    Invoke-RegistryChange -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters" -Name "EnablePrefetcher" -NewValue 0
-    Invoke-RegistryChange -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters" -Name "EnableSuperfetch" -NewValue 0
-    Invoke-RegistryChange -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "ClearPageFileAtShutdown" -NewValue 0
-    Invoke-RegistryChange -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "DisablePagingExecutive" -NewValue 1
-    Invoke-RegistryChange -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "LargeSystemCache" -NewValue 1
+    Invoke-RegistryChange -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters" -Name "EnableBoottrace" -NewValue 0 -Type "DWord"
+    Invoke-RegistryChange -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters" -Name "EnablePrefetcher" -NewValue 0 -Type "DWord"
+    Invoke-RegistryChange -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters" -Name "EnableSuperfetch" -NewValue 0 -Type "DWord"
+    Invoke-RegistryChange -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "ClearPageFileAtShutdown" -NewValue 0 -Type "DWord"
+    Invoke-RegistryChange -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "DisablePagingExecutive" -NewValue 1 -Type "DWord"
+    Invoke-RegistryChange -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "LargeSystemCache" -NewValue 1 -Type "DWord"
 }
 #endregion
 
 #region Visual Performance
 Write-Host "`n--- Applying visual performance optimizations ---"
 if (-not $WhatIf) {
-    Invoke-RegistryChange -Path "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" -Name "TdrDdiDelay" -NewValue 10
-    Invoke-RegistryChange -Path "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" -Name "TdrDelay" -NewValue 10
-    Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "VisualFXSetting" -NewValue 3
-    Invoke-RegistryChange -Path "HKCU:\Control Panel\Desktop\WindowMetrics" -Name "MinAnimate" -NewValue 0
-    Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ListviewAlphaSelect" -NewValue 0
-    Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ListviewShadow" -NewValue 1
-    Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarAnimations" -NewValue 0
+    Invoke-RegistryChange -Path "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" -Name "TdrDdiDelay" -NewValue 10 -Type "DWord"
+    Invoke-RegistryChange -Path "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" -Name "TdrDelay" -NewValue 10 -Type "DWord"
+    Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "VisualFXSetting" -NewValue 3 -Type "DWord"
+    Invoke-RegistryChange -Path "HKCU:\Control Panel\Desktop\WindowMetrics" -Name "MinAnimate" -NewValue 0 -Type "DWord"
+    Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ListviewAlphaSelect" -NewValue 0 -Type "DWord"
+    Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ListviewShadow" -NewValue 1 -Type "DWord"
+    Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarAnimations" -NewValue 0 -Type "DWord"
     Invoke-RegistryChange -Path "HKCU:\Control Panel\Desktop" -Name "MenuShowDelay" -NewValue 20
 }
 #endregion
@@ -442,23 +441,23 @@ if (-not $WhatIf) {
 #region Network Optimizations
 Write-Host "`n--- Applying network optimizations ---"
 if (-not $WhatIf) {
-    Invoke-RegistryChange -Path "HKLM:\System\CurrentControlSet\Services\Tcpip\Parameters" -Name "DefaultTTL" -NewValue 64
-    Invoke-RegistryChange -Path "HKLM:\System\CurrentControlSet\Services\Tcpip\Parameters" -Name "MaxUserPort" -NewValue 65534
-    Invoke-RegistryChange -Path "HKLM:\System\CurrentControlSet\Services\Tcpip\Parameters" -Name "TcpTimedWaitDelay" -NewValue 30
-    Invoke-RegistryChange -Path "HKLM:\Software\Policies\Microsoft\Windows\Psched" -Name "NonBestEffortLimit" -NewValue 0
-    Invoke-RegistryChange -Path "HKLM:\System\CurrentControlSet\Services\LanmanServer\Parameters" -Name "Size" -NewValue 3
-    Invoke-RegistryChange -Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" -Name "NetworkThrottlingIndex" -NewValue 4294967295
-    Invoke-RegistryChange -Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" -Name "SystemResponsiveness" -NewValue 10
-    Invoke-RegistryChange -Path "HKLM:\Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_MAXCONNECTIONSPER1_0SERVER" -Name "explorer.exe" -NewValue 10
-    Invoke-RegistryChange -Path "HKLM:\Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_MAXCONNECTIONSPERSERVER" -Name "explorer.exe" -NewValue 10
+    Invoke-RegistryChange -Path "HKLM:\System\CurrentControlSet\Services\Tcpip\Parameters" -Name "DefaultTTL" -NewValue 64 -Type "DWord"
+    Invoke-RegistryChange -Path "HKLM:\System\CurrentControlSet\Services\Tcpip\Parameters" -Name "MaxUserPort" -NewValue 65534 -Type "DWord"
+    Invoke-RegistryChange -Path "HKLM:\System\CurrentControlSet\Services\Tcpip\Parameters" -Name "TcpTimedWaitDelay" -NewValue 30 -Type "DWord"
+    Invoke-RegistryChange -Path "HKLM:\Software\Policies\Microsoft\Windows\Psched" -Name "NonBestEffortLimit" -NewValue 0 -Type "DWord"
+    Invoke-RegistryChange -Path "HKLM:\System\CurrentControlSet\Services\LanmanServer\Parameters" -Name "Size" -NewValue 3 -Type "DWord"
+    Invoke-RegistryChange -Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" -Name "NetworkThrottlingIndex" -NewValue 4294967295 -Type "DWord"
+    Invoke-RegistryChange -Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" -Name "SystemResponsiveness" -NewValue 10 -Type "DWord"
+    Invoke-RegistryChange -Path "HKLM:\Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_MAXCONNECTIONSPER1_0SERVER" -Name "explorer.exe" -NewValue 10 -Type "DWord"
+    Invoke-RegistryChange -Path "HKLM:\Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_MAXCONNECTIONSPERSERVER" -Name "explorer.exe" -NewValue 10 -Type "DWord"
 }
 #endregion
 
 #region Windows Update Tweaks
 Write-Host "`n--- Applying Windows Update optimizations ---"
 if (-not $WhatIf) {
-    Invoke-RegistryChange -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate" -Name "DisableDualScan" -NewValue 0
-    Invoke-RegistryChange -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -Name "AllowMUUpdateService" -NewValue 1
+    Invoke-RegistryChange -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate" -Name "DisableDualScan" -NewValue 0 -Type "DWord"
+    Invoke-RegistryChange -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -Name "AllowMUUpdateService" -NewValue 1 -Type "DWord"
     Invoke-RegistryChange -Path "HKLM:\SOFTWARE\Microsoft\.NET" -Name "BlockMU" 0
 }
 #endregion
@@ -466,20 +465,75 @@ if (-not $WhatIf) {
 #region Security Settings
 Write-Host "`n--- Applying security settings ---"
 if (-not $WhatIf) {
-    Invoke-RegistryChange -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "FeatureSettingsOverride" -NewValue 72
-    Invoke-RegistryChange -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "FeatureSettingsOverrideMask" -NewValue 3
+    Invoke-RegistryChange -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "FeatureSettingsOverride" -NewValue 72 -Type "DWord"
+    Invoke-RegistryChange -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "FeatureSettingsOverrideMask" -NewValue 3 -Type "DWord"
+    Invoke-RegistryChange -Path "HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot" -Name "TurnOffWindowsCopilot" -NewValue 1 -Type "DWord"
 }
 #endregion
 
 #region Misc Performance
 Write-Host "`n--- Applying miscellaneous performance tweaks ---"
 if (-not $WhatIf) {
-Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Serialize" -Name "StartupDelayInMSec" -NewValue 0
-    Invoke-RegistryChange -Path "HKCU:\SOFTWARE\Microsoft\Personalization\Settings" -Name "AcceptedPrivacyPolicy" -NewValue 0
-    Invoke-RegistryChange -Path "HKCU:\SOFTWARE\Microsoft\InputPersonalization" -Name "RestrictImplicitTextCollection" -NewValue 1
-    Invoke-RegistryChange -Path "HKCU:\SOFTWARE\Microsoft\InputPersonalization" -Name "RestrictImplicitInkCollection" -NewValue 1
-    Invoke-RegistryChange -Path "HKCU:\SOFTWARE\Microsoft\InputPersonalization\TrainedDataStore" -Name "HarvestContacts" -NewValue 0
-    Invoke-RegistryChange -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Name "AllowCortana" -NewValue 0
+Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Serialize" -Name "StartupDelayInMSec" -NewValue 0 -Type "DWord"
+    Invoke-RegistryChange -Path "HKCU:\SOFTWARE\Microsoft\Personalization\Settings" -Name "AcceptedPrivacyPolicy" -NewValue 0 -Type "DWord"
+    Invoke-RegistryChange -Path "HKCU:\SOFTWARE\Microsoft\InputPersonalization" -Name "RestrictImplicitTextCollection" -NewValue 1 -Type "DWord"
+    Invoke-RegistryChange -Path "HKCU:\SOFTWARE\Microsoft\InputPersonalization" -Name "RestrictImplicitInkCollection" -NewValue 1 -Type "DWord"
+    Invoke-RegistryChange -Path "HKCU:\SOFTWARE\Microsoft\InputPersonalization\TrainedDataStore" -Name "HarvestContacts" -NewValue 0 -Type "DWord"
+}
+#endregion
+
+#region Personalization
+Write-Host "`n--- Applying personalization settings ---"
+if (-not $WhatIf) {
+    Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes" -Name "Personalize" -NewValue 0 -Type "DWord"
+    Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarGlomLevel" -NewValue 1 -Type "DWord"
+    Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarAnimations" -NewValue 0 -Type "DWord"
+    Invoke-RegistryChange -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer" -Name "NoThemesTab" -NewValue 0 -Type "DWord"
+    Invoke-RegistryChange -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer" -Name "NoSaveSettings" -NewValue 0 -Type "DWord"
+}
+#endregion
+
+#region Disable Telemetry
+Write-Host "`n--- Disabling telemetry and data collection ---"
+if (-not $WhatIf) {
+    Invoke-RegistryChange -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection" -Name "AllowTelemetry" -NewValue 0 -Type "DWord"
+    Invoke-RegistryChange -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection" -Name "AllowCortana" -NewValue 0 -Type "DWord"
+    Invoke-RegistryChange -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection" -Name "AllowCloudOptimizedContent" -NewValue 0 -Type "DWord"
+    Invoke-RegistryChange -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection" -Name "AllowDeviceTelemetry" -NewValue 0 -Type "DWord"
+    Invoke-RegistryChange -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection" -Name "AllowTelemetryForApps" -NewValue 0 -Type "DWord"
+}
+#endregion
+
+#region Disable Office Telemetry
+Write-Host "`n--- Disabling Office telemetry and data collection ---"
+if (-not $WhatIf) {
+    Invoke-RegistryChange -Path "HKCU:\Software\Policies\Microsoft\Office\16.0\osm]" -Name "Enablelogging" -NewValue 0 -Type "DWord"
+    Invoke-RegistryChange -Path "HKCU:\Software\Policies\Microsoft\Office\16.0\osm]" -Name "EnableUpload" -NewValue 0 -Type "DWord"
+    Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Office\Common\ClientTelemetry" -Name "DisableTelemetry" -NewValue 1 -Type "DWord"
+}
+#endregion
+
+#region Explorer Settings
+Write-Host "`n--- Applying Explorer settings ---"
+if (-not $WhatIf) {
+    Invoke-RegistryChange -Path "HKCU:\Software\Policies\Microsoft\Windows\Explorer" -Name "NoUseStoreOpenWith" -NewValue 1 -Type "DWord"
+    Invoke-RegistryChange -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "NoUseStoreOpenWith" -NewValue 1 -Type "DWord"
+    Invoke-RegistryChange -Path "HKCU:\Software\Policies\Microsoft\Windows\Explorer" -Name "StartupDelayinMSec" -NewValue 1 -Type "DWord"
+    Invoke-RegistryChange -Path "HKCU:\Software\Policies\Microsoft\Windows\Explorer" -Name "WaitForIdleState " -NewValue 0 -Type "DWord"
+    Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ShowSuperHidden" -NewValue 0 -Type "DWord"
+    Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "Hidden" -NewValue 1 -Type "DWord"
+    Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "HideFileExt" -NewValue 0 -Type "DWord"
+    Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "NavPaneShowAllFolders" -NewValue 0 -Type "DWord"
+}
+#endregion
+
+#region Miscellaneous Tweaks
+Write-Host "`n--- Applying miscellaneous performance tweaks ---"
+if (-not $WhatIf) {
+    Invoke-RegistryChange -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games" -Name "GPU Priority" -NewValue 8 -Type "DWord"
+    Invoke-RegistryChange -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games" -Name "Priority " -NewValue 6 -Type "DWord"
+    Invoke-RegistryChange -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games" -Name "Scheduling Category" -NewValue "High" -Type "String"
+    Invoke-RegistryChange -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games" -Name "SFIO Priority" -NewValue "High" -Type "String"
 }
 #endregion
 
@@ -490,6 +544,7 @@ Invoke-AppReinstallBlock
 Invoke-TelemetryDisabling
 Invoke-VisualCRuntimesCheck
 Invoke-NetworkHardening
+Invoke-NetworkOptimizations
 Invoke-USBSelectiveSuspend -Enabled $true
 Invoke-WinUtilExplorerUpdate
 Invoke-PowerPlan
