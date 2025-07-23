@@ -29,7 +29,7 @@
     Author         | Jason Bradley Darling
     Creation Date  | [DMY] 23.12.2021
     Last Edit Date | [DMY] 23.07.2025
-    Version        | 0.0.25
+    Version        | 0.0.26
     License        | MIT -- https://opensource.org/licenses/MIT -- Copyright (c) 2021-2025 Jason Bradley Darling
     Change Log     | 2021-04-12: Initial version created by Jason Bradley Darling.
                    | 2023-10-02: Added functionality to check and install Visual C++ runtimes.
@@ -93,21 +93,24 @@ $summaryLogPath     = Join-Path $LogDirectory "OptimizationSummary.log"
 $transcriptLogPath  = Join-Path $LogDirectory "OptimizationTranscript.log"
 $changeMap          = @{}
 $summary            = @()
+$verbSet            = @()
 $start              = $([DateTime]::Now)
 $HWND_BROADCAST     = [intptr]0xffff
 $WM_SETTINGCHANGE   = 0x001A
-$getString          = @'
-[DllImport("kernel32.dll", CharSet = CharSet.Auto)]
-public static extern IntPtr GetModuleHandle(string lpModuleName);
-[DllImport("user32.dll", CharSet = CharSet.Auto)]
-internal static extern int LoadString(IntPtr hInstance, uint uID, StringBuilder lpBuffer, int nBufferMax);
-public static string GetString(uint strId) {
-    IntPtr intPtr = GetModuleHandle("shell32.dll");
-    StringBuilder sb = new StringBuilder(255);
-    LoadString(intPtr, strId, sb, sb.Capacity);
-    return sb.ToString();
+$getstring          = @"
+using System;
+using System.Runtime.InteropServices;
+public class GetStr {
+    [DllImport("user32.dll", CharSet=CharSet.Unicode)]
+    public static extern int LoadString(IntPtr hInstance, int uID, System.Text.StringBuilder lpBuffer, int nBufferMax);
+
+    public static string GetString(int uID) {
+        var buffer = new System.Text.StringBuilder(256);
+        LoadString(IntPtr.Zero, uID, buffer, buffer.Capacity);
+        return buffer.ToString();
+    }
 }
-'@
+"@
 Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
@@ -116,6 +119,10 @@ public class NativeMethods {
     public static extern IntPtr SendMessage(IntPtr hWnd, int Msg, IntPtr wParam, IntPtr lParam);
 }
 "@
+
+
+
+
 
 
 #---------------------------------------------------------[Initializations]--------------------------------------------------------
@@ -185,6 +192,30 @@ if ($Revert) {
     Write-Host "`nReversion complete. Summary saved to:`n$summaryLogPath"
     return
 }
+#endregion
+
+#region [Get Verb Set]
+try {
+    $GetStr = Add-Type -TypeDefinition $getstring -PassThru
+} catch {
+    Write-Warning "Failed to compile GetString class. Falling back to static strings only."
+    $GetStr = $null
+}
+
+# Retrieve verb strings (localized and fallback)
+if ($GetStr) {
+    try {
+        $verbSet += $GetStr[0]::GetString(51394) # "Unpin from Start"
+        $verbSet += $GetStr[0]::GetString(5382) # "Unpin from Start"
+        $verbSet += $GetStr[0]::GetString(5387)  # "Unpin from taskbar"
+        Write-Host "Loaded localized verbs: $($verbSet -join ', ')"
+    } catch {
+        Write-Warning "Localized verb resolution failed. Using fallback verbs."
+    }
+}
+
+# Add fallback English strings
+$verbSet += 'Unpin from Start', 'Unpin from taskbar'
 #endregion
 
 #-----------------------------------------------------------[Functions]------------------------------------------------------------
@@ -403,6 +434,30 @@ function Invoke-AppUnpinning {
     #Pin-App "Explorer" -pin -taskbar
     #Pin-App "Microsoft Edge" -pin -taskbar
     $summary += "Unpinned apps from Start Menu for user: $Username"
+}
+function Invoke-UpinningApps {
+    Write-Host "`n--- Unpinning apps from Start Menu and Taskbar for user: $Username ---"
+    # Unpin matched items
+    $appsFolder = (New-Object -ComObject Shell.Application).Namespace('shell:::{4234d49b-0245-4df3-b780-3893943456e1}')
+    $items = $appsFolder.Items()
+
+    foreach ($item in $items) {
+        $appName = $item.Name
+        $matched = $false
+
+        foreach ($verb in $item.Verbs()) {
+            $cleanVerb = $verb.Name.Replace('&', '').Trim()
+            if ($verbSet -contains $cleanVerb) {
+                Write-Host "Unpinning '$appName' using verb '$cleanVerb'"
+                $verb.DoIt()
+                $matched = $true
+            }
+        }
+
+        if (-not $matched) {
+            Write-Host "No matching verb found for '$appName'. Skipping."
+        }
+    }
 }
 function Invoke-VisualCRuntimesCheck {
     $vcRuntimes=@(
@@ -637,7 +692,7 @@ Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Exp
 Write-Host "`n--- Applying personalization settings ---"
 if (-not $WhatIf) {
     Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes" -Name "Personalize" -NewValue 0 -Type "DWord"
-    Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarGlomLevel" -NewValue 1 -Type "DWord"
+    #Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarGlomLevel" -NewValue 1 -Type "DWord"
     Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarAnimations" -NewValue 0 -Type "DWord"
     Invoke-RegistryChange -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer" -Name "NoThemesTab" -NewValue 0 -Type "DWord"
     Invoke-RegistryChange -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer" -Name "NoSaveSettings" -NewValue 0 -Type "DWord"
@@ -692,7 +747,8 @@ if (-not $WhatIf) {
 Invoke-NonCriticalServicesDisablement
 Invoke-AppCleanup
 Invoke-AppReinstallBlock
-Invoke-AppUnpinning
+#Invoke-AppUnpinning
+Invoke-UpinningApps
 Invoke-TelemetryDisabling
 Invoke-VisualCRuntimesCheck
 Invoke-NetworkHardening
