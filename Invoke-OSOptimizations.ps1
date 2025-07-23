@@ -28,8 +28,8 @@
 .NOTES
     Author         | Jason Bradley Darling
     Creation Date  | [DMY] 23.12.2021
-    Last Edit Date | [DMY] 22.07.2025
-    Version        | 0.0.24
+    Last Edit Date | [DMY] 23.07.2025
+    Version        | 0.0.25
     License        | MIT -- https://opensource.org/licenses/MIT -- Copyright (c) 2021-2025 Jason Bradley Darling
     Change Log     | 2021-04-12: Initial version created by Jason Bradley Darling.
                    | 2023-10-02: Added functionality to check and install Visual C++ runtimes.
@@ -37,6 +37,7 @@
                    | 2025-07-20: Corrected Visual C++ installation logic to handle different versions and arguments.
                    | 2025-07-21: Corrected Visual C++ installation logic to ensure both x86 and x64 versions are installed correctly. Updated logic and syntax in various functions.
                    | 2025-07-22: Added various performance optimizations. Updated logic for some functions.
+                   | 2025-07-23: Add AppUnpinning function to unpin apps from Start Menu and Taskbar.
     Requirements   | PowerShell 5.1 or later, administrative privileges
     Compatibility  | Windows 10 and later
     Notes          | This script is intended for use in a corporate environment to streamline OS performance and reduce bloat.
@@ -95,7 +96,18 @@ $summary            = @()
 $start              = $([DateTime]::Now)
 $HWND_BROADCAST     = [intptr]0xffff
 $WM_SETTINGCHANGE   = 0x001A
-
+$getString          = @'
+[DllImport("kernel32.dll", CharSet = CharSet.Auto)]
+public static extern IntPtr GetModuleHandle(string lpModuleName);
+[DllImport("user32.dll", CharSet = CharSet.Auto)]
+internal static extern int LoadString(IntPtr hInstance, uint uID, StringBuilder lpBuffer, int nBufferMax);
+public static string GetString(uint strId) {
+    IntPtr intPtr = GetModuleHandle("shell32.dll");
+    StringBuilder sb = new StringBuilder(255);
+    LoadString(intPtr, strId, sb, sb.Capacity);
+    return sb.ToString();
+}
+'@
 Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
@@ -104,6 +116,7 @@ public class NativeMethods {
     public static extern IntPtr SendMessage(IntPtr hWnd, int Msg, IntPtr wParam, IntPtr lParam);
 }
 "@
+
 
 #---------------------------------------------------------[Initializations]--------------------------------------------------------
 $ErrorActionPreference                  = "SilentlyContinue"
@@ -228,7 +241,8 @@ function Invoke-AppCleanup {
     foreach ($app in $apps) {
         $packages = Get-AppxPackage -Name "*$app*" -ErrorAction SilentlyContinue
         foreach ($pkg in $packages) {
-            Remove-AppxPackage -Package $pkg.PackageFullName
+            Start-Job -Name WaitForJob -ScriptBlock { Remove-AppxPackage -Package $pkg.PackageFullName }
+            Wait-Job -Name WaitForJob
             $summary += "Removed app: $($pkg.Name)"
         }
     }
@@ -252,6 +266,143 @@ function Invoke-AppReinstallBlock {
     Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\WindowsStore" -Name "AutoDownload" -Value 2 -Type DWord -Force
     Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent" -Name "DisableWindowsConsumerFeatures" -Value 1 -Type DWord -Force
     $summary += "Blocked app reinstall for user: $Username"
+}
+function Invoke-AppUnpinning {
+    $getstring = Add-Type $getstring -PassThru -Name GetStr -Using System.Text
+    $unpinFromStart1 = $getstring[0]::GetString(51394)
+    $unpinFromStart2 = $getstring[0]::GetString(5382)
+    <#
+        Notes :
+        5381  : Pin to Start
+        5382  : Unpin From Start
+
+        5386  : Pin to Taskbar
+        5387  : Unpin from Taskbar
+
+        51201 : Pin to Start
+        51394 : Unpin from Start
+
+    #>
+
+    function Pin-App ([string]$appname, [switch]$unpin, [switch]$start, [switch]$taskbar, [string]$path) {
+        if ($unpin.IsPresent) {
+            $action = "unpin"
+        } else {
+            $action = "pin"
+        }
+        if (-not $taskbar.IsPresent -and -not $start.IsPresent) {
+            Write-Error "Specify -taskbar and/or -start!"
+        }
+        if ($taskbar.IsPresent) {
+            try {
+                $exec = $false
+                if ($action -eq "Unpin") {
+                    ((New-Object -Com Shell.Application).NameSpace('shell:::{4234d49b-0245-4df3-b780-3893943456e1}').Items() | ?{$_.Name -eq $appname}).Verbs() | ?{$_.Name.replace('&','') -match 'Unpin from taskbar'} | %{$_.DoIt(); $exec = $true}
+                    if ($exec) {
+                        Write-Host "App '$appname' unpinned from Taskbar"
+                    } else {
+                        if (-not $path -eq "") {
+                            Pin-AppByPath $path -Action $action
+                        } else {
+                            Write-Host "'$appname' not found or 'Unpin from taskbar' not found on item!"
+                        }
+                    }
+                } else {
+                    ((New-Object -Com Shell.Application).NameSpace('shell:::{4234d49b-0245-4df3-b780-3893943456e1}').Items() | ?{$_.Name -eq $appname}).Verbs() | ?{$_.Name.replace('&','') -match 'Pin to taskbar'} | %{$_.DoIt(); $exec = $true}
+                    if ($exec) {
+                        Write-Host "App '$appname' pinned to Taskbar"
+                    } else {
+                        if (-not $path -eq "") {
+                            Pin-AppByPath $path -Action $action
+                        } else {
+                            Write-Host "'$appname' not found or 'Pin to taskbar' not found on item!"
+                        }
+                    }
+                }
+            } catch {
+                Write-Error "Error Pinning/Unpinning '$appname' to/from taskbar!"
+            }
+        }
+        if ($start.IsPresent) {
+            try {
+                $exec = $false
+                if ($action -eq "Unpin") {
+                    ((New-Object -Com Shell.Application).NameSpace('shell:::{4234d49b-0245-4df3-b780-3893943456e1}').Items() | ?{$_.Name -eq $appname}).Verbs() | ?{$_.Name.replace('&','') -match 'Unpin from Start'} | %{$_.DoIt(); $exec = $true}
+                    if ($exec) {
+                        Write-Host "App '$appname' unpinned from Start" -ForegroundColor Green
+                    } else {
+                        if (-not $path -eq "") {
+                            Pin-AppByPath $path -Action $action -start
+                        } else {
+                            Write-Host "'$appname' not found or 'Unpin from Start' not found on item!"
+                        }
+                    }
+                } else {
+                    ((New-Object -Com Shell.Application).NameSpace('shell:::{4234d49b-0245-4df3-b780-3893943456e1}').Items() | ?{$_.Name -eq $appname}).Verbs() | ?{$_.Name.replace('&','') -match 'Pin to Start'} | %{$_.DoIt(); $exec = $true}
+                    if ($exec) {
+                        Write-Host "App '$appname' pinned to Start"
+                    } else {
+                        if (-not $path -eq "") {
+                            Pin-AppByPath $path -Action $action -start
+                        } else {
+                            Write-Host "'$appname' not found or 'Pin to Start' not found on item!"
+                        }
+                    }
+                }
+            } catch {
+                Write-Error "Error Pinning/Unpinning '$appname' to/from Start!"
+            }
+        }
+    }
+
+    function Pin-AppByPath([string]$Path, [string]$Action, [switch]$start) {
+        if ($Path -eq "") {
+            Write-Error -Message "You need to specify a Path" -ErrorAction Stop
+        }
+        if ($Action -eq "") {
+            Write-Error -Message "You need to specify an action: Pin or Unpin" -ErrorAction Stop
+        }
+        if ((Get-Item -Path $Path -ErrorAction SilentlyContinue) -eq $null){
+            Write-Error -Message "$Path not found" -ErrorAction Stop
+        }
+        $Shell = New-Object -ComObject "Shell.Application"
+        $ItemParent = Split-Path -Path $Path -Parent
+        $ItemLeaf = Split-Path -Path $Path -Leaf
+        $Folder = $Shell.NameSpace($ItemParent)
+        $ItemObject = $Folder.ParseName($ItemLeaf)
+        $Verbs = $ItemObject.Verbs()
+        if ($start.IsPresent) {
+            switch($Action) {
+                "Pin"   {$Verb = $Verbs | Where-Object -Property Name -EQ "&Pin to Start"}
+                "Unpin" {$Verb = $Verbs | Where-Object -Property Name -EQ "Un&pin from Start"}
+                default {Write-Error -Message "Invalid action, should be Pin or Unpin" -ErrorAction Stop}
+            }
+        } else {
+            switch($Action) {
+                "Pin"   {$Verb = $Verbs | Where-Object -Property Name -EQ "Pin to Tas&kbar"}
+                "Unpin" {$Verb = $Verbs | Where-Object -Property Name -EQ "Unpin from Tas&kbar"}
+                default {Write-Error -Message "Invalid action, should be Pin or Unpin" -ErrorAction Stop}
+            }
+        }
+        if($Verb -eq $null) {
+            Write-Error -Message "That action is not currently available on this Path" -ErrorAction Stop
+        } else {
+            $Result = $Verb.DoIt()
+        }
+    }
+
+    Write-Host "`n--- Unpinning apps from Start Menu and Taskbar for user: $Username ---"
+    (New-Object -Com Shell.Application).NameSpace('shell:::{4234d49b-0245-4df3-b780-3893943456e1}').Items() | ForEach-Object{ $_.Verbs() | Where-Object{$_.Name -eq $unpinFromStart1} | ForEach-Object{$_.DoIt()}}
+    (New-Object -Com Shell.Application).NameSpace('shell:::{4234d49b-0245-4df3-b780-3893943456e1}').Items() | ForEach-Object{ $_.Verbs() | Where-Object{$_.Name -eq $unpinFromStart2} | ForEach-Object{$_.DoIt()}}
+
+    #$applist = @("3DBuilder", "Adobe Photoshop Express", "Alarms & Clock", "Asphalt 8: Airborne", "Bubble Witch 3 Saga", "Calculator", "Calendar", "Camera", "Candy Crush Soda Saga", "Code Writer", "CommsPhone", "Connect", "ConnectivityStore", "ContentDeliveryManager", "Cortana", "DefaultStartLayout", "Drawboard", "Duolingo", "Eclipse Manager", "Feedback Hub", "Finance", "Flipboard", "FreshPaint", "Fresh Paint", "Get Help", "Get Office", "GetStarted", "Google Chrome", "Groove Music", "Groove Video", "iHeartRadio", "Maps", "Mail", "Mail", "March of Empires: War of Lords", "Messaging", "Microsoft Edge", "MicrosoftOfficeHub", "MicrosoftPowerBIForWindows", "Microsoft Power BI", "Microsoft Solitaire Collection", "MicrosoftStickyNotes", "Microsoft Store", "Microsoft Store", "Microsoft Sway", "Microsoft To-Do", "Microsoft Whiteboard", "Microsoft.Windows.ContentDeliveryManager", "Minecraft", "MinecraftUWP", "Mixed Reality Portal", "Mixed Reality Viewer", "Mobile Plans", "Money", "Movies & TV", "MSPaint", "Music", "My Office", "Network Speed Test", "News", "Notepad", "Office Lens", "OneConnect", "OneNote", "Paid Wi-Fi & Cellular", "Paint 3D", "Pandora", "People", "Phone", "Phone Companion", "Photos", "Plex", "Power BI", "Preinstalled", "Print 3D", "Remote Desktop", "Shazam", "SketchBook", "Skype", "SkypeApp", "Sports", "Spotify", "Stickies", "Sticky Notes", "Store", "Store", "SurfaceHub", "Sway", "TheNewYorkTimes.NYTCrossword", "Tips", "Twitter", "Video", "Voice Recorder", "Weather", "WindowsAlarms", "WindowsCalculator", "WindowsCamera", "windowscommunicationapps", "WindowsMaps", "WindowsSoundRecorder", "Xbox", "Zune Music", "Zune Video")
+    #foreach ($app in $applist) {
+    #    Pin-App -appname $app -unpin -start
+    #    Pin-App -appname $app -unpin -taskbar
+    #}
+    #Pin-App "Explorer" -pin -taskbar
+    #Pin-App "Microsoft Edge" -pin -taskbar
+    $summary += "Unpinned apps from Start Menu for user: $Username"
 }
 function Invoke-VisualCRuntimesCheck {
     $vcRuntimes=@(
@@ -541,6 +692,7 @@ if (-not $WhatIf) {
 Invoke-NonCriticalServicesDisablement
 Invoke-AppCleanup
 Invoke-AppReinstallBlock
+Invoke-AppUnpinning
 Invoke-TelemetryDisabling
 Invoke-VisualCRuntimesCheck
 Invoke-NetworkHardening
