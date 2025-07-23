@@ -268,13 +268,63 @@ function Invoke-NonCriticalServicesDisablement {
 }
 function Invoke-AppCleanup {
     Write-Host "`n--- Removing non-essential apps for user: $Username ---"
-    $apps = @("Candy", "Cortana", "eBay", "Facebook", "FeedbackHub", "Netflix", "Roblox", "Skype", "Spotify", "TikTok", "Twitter", "Weather", "Xbox", "YouTube")
+    $apps = @(
+        "Clipchamp.Clipchamp",
+        "Microsoft.BingNews",
+        "Microsoft.BingWeather",
+        "Microsoft.Edge.GameAssist",
+        "Microsoft.GamingApp",
+        "Microsoft.GetHelp",
+        "Microsoft.Getstarted",
+        "Microsoft.MicrosoftOfficeHub",
+        "Microsoft.MicrosoftSolitaireCollection",
+        "Microsoft.MicrosoftStickyNotes",
+        "Microsoft.OutlookForWindows",
+        "Microsoft.People",
+        "Microsoft.PowerAutomateDesktop",
+        "Microsoft.ScreenSketch",
+        "Microsoft.Todos",
+        "Microsoft.Windows.DevHome",
+        "Microsoft.WindowsAlarms",
+        "Microsoft.WindowsCamera",
+        "Microsoft.WindowsFeedbackHub",
+        "Microsoft.WindowsMaps",
+        "Microsoft.WindowsSoundRecorder",
+        "Microsoft.Xbox.TCUI",
+        "Microsoft.XboxGameOverlay",
+        "Microsoft.XboxGamingOverlay",
+        "Microsoft.XboxIdentityProvider",
+        "Microsoft.XboxSpeechToTextOverlay",
+        "Microsoft.YourPhone",
+        "Microsoft.ZuneMusic",
+        "Microsoft.ZuneVideo",
+        "Candy",
+        "Cortana",
+        "eBay",
+        "Facebook",
+        "FeedbackHub",
+        "Netflix",
+        "Roblox",
+        "Skype",
+        "Spotify",
+        "TikTok",
+        "Twitter",
+        "Weather",
+        "Xbox",
+        "YouTube"
+    )
     foreach ($app in $apps) {
-        $packages = Get-AppxPackage -Name "*$app*" -ErrorAction SilentlyContinue
-        foreach ($pkg in $packages) {
+        $packages1 = Get-AppxPackage -Name "*$app*"
+        foreach ($pkg in $packages1) {
             Start-Job -Name WaitForJob -ScriptBlock { Remove-AppxPackage -Package $pkg.PackageFullName }
             Wait-Job -Name WaitForJob
             $summary += "Removed app: $($pkg.Name)"
+        }
+        $packages2 = Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -like "*$app*" }
+        foreach ($pkg in $packages2) {
+            Start-Job -Name WaitForJob -ScriptBlock { Remove-AppxProvisionedPackage -Online -PackageName $pkg.PackageName }
+            Wait-Job -Name WaitForJob
+            $summary += "Removed provisioned app: $($pkg.DisplayName)"
         }
     }
 }
