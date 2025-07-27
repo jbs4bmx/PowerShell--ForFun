@@ -28,8 +28,8 @@
 .NOTES
     Author         | Jason Bradley Darling
     Creation Date  | [DMY] 23.12.2021
-    Last Edit Date | [DMY] 23.07.2025
-    Version        | 0.0.26
+    Last Edit Date | [DMY] 27.07.2025
+    Version        | 0.0.28
     License        | MIT -- https://opensource.org/licenses/MIT -- Copyright (c) 2021-2025 Jason Bradley Darling
     Change Log     | 2021-04-12: Initial version created by Jason Bradley Darling.
                    | 2023-10-02: Added functionality to check and install Visual C++ runtimes.
@@ -37,7 +37,7 @@
                    | 2025-07-20: Corrected Visual C++ installation logic to handle different versions and arguments.
                    | 2025-07-21: Corrected Visual C++ installation logic to ensure both x86 and x64 versions are installed correctly. Updated logic and syntax in various functions.
                    | 2025-07-22: Added various performance optimizations. Updated logic for some functions.
-                   | 2025-07-23: Add AppUnpinning function to unpin apps from Start Menu and Taskbar.
+                   | 2025-07-23: Add AppX Package removal and App unpinning function to unpin apps from Start Menu and Taskbar.
     Requirements   | PowerShell 5.1 or later, administrative privileges
     Compatibility  | Windows 10 and later
     Notes          | This script is intended for use in a corporate environment to streamline OS performance and reduce bloat.
@@ -119,11 +119,6 @@ public class NativeMethods {
     public static extern IntPtr SendMessage(IntPtr hWnd, int Msg, IntPtr wParam, IntPtr lParam);
 }
 "@
-
-
-
-
-
 
 #---------------------------------------------------------[Initializations]--------------------------------------------------------
 $ErrorActionPreference                  = "SilentlyContinue"
@@ -213,7 +208,6 @@ if ($GetStr) {
         Write-Warning "Localized verb resolution failed. Using fallback verbs."
     }
 }
-
 # Add fallback English strings
 $verbSet += 'Unpin from Start', 'Unpin from taskbar'
 #endregion
@@ -311,18 +305,19 @@ function Invoke-AppCleanup {
         "Twitter",
         "Weather",
         "Xbox",
-        "YouTube"
+        "YouTube",
+        "Linkedin"
     )
     foreach ($app in $apps) {
         $packages1 = Get-AppxPackage -Name "*$app*"
         foreach ($pkg in $packages1) {
-            Start-Job -Name WaitForJob -ScriptBlock { Remove-AppxPackage -Package $pkg.PackageFullName }
+            Start-Job -Name WaitForJob -ScriptBlock { Remove-AppxPackage -Package $pkg.Name -ErrorAction SilentlyContinue }
             Wait-Job -Name WaitForJob
             $summary += "Removed app: $($pkg.Name)"
         }
         $packages2 = Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -like "*$app*" }
         foreach ($pkg in $packages2) {
-            Start-Job -Name WaitForJob -ScriptBlock { Remove-AppxProvisionedPackage -Online -PackageName $pkg.PackageName }
+            Start-Job -Name WaitForJob -ScriptBlock { Remove-AppxProvisionedPackage -Online -PackageName $pkg.DisplayName -ErrorAction SilentlyContinue }
             Wait-Job -Name WaitForJob
             $summary += "Removed provisioned app: $($pkg.DisplayName)"
         }
@@ -352,6 +347,7 @@ function Invoke-AppUnpinning {
     $getstring = Add-Type $getstring -PassThru -Name GetStr -Using System.Text
     $unpinFromStart1 = $getstring[0]::GetString(51394)
     $unpinFromStart2 = $getstring[0]::GetString(5382)
+    $unpinFromTaskbar1 = $getstring[0]::GetString(5387)
     <#
         Notes :
         5381  : Pin to Start
@@ -475,37 +471,35 @@ function Invoke-AppUnpinning {
     Write-Host "`n--- Unpinning apps from Start Menu and Taskbar for user: $Username ---"
     (New-Object -Com Shell.Application).NameSpace('shell:::{4234d49b-0245-4df3-b780-3893943456e1}').Items() | ForEach-Object{ $_.Verbs() | Where-Object{$_.Name -eq $unpinFromStart1} | ForEach-Object{$_.DoIt()}}
     (New-Object -Com Shell.Application).NameSpace('shell:::{4234d49b-0245-4df3-b780-3893943456e1}').Items() | ForEach-Object{ $_.Verbs() | Where-Object{$_.Name -eq $unpinFromStart2} | ForEach-Object{$_.DoIt()}}
+    (New-Object -Com Shell.Application).NameSpace('shell:::{4234d49b-0245-4df3-b780-3893943456e1}').Items() | ForEach-Object{ $_.Verbs() | Where-Object{$_.Name -eq $unpinFromTaskbar1} | ForEach-Object{$_.DoIt()}}
 
     #$applist = @("3DBuilder", "Adobe Photoshop Express", "Alarms & Clock", "Asphalt 8: Airborne", "Bubble Witch 3 Saga", "Calculator", "Calendar", "Camera", "Candy Crush Soda Saga", "Code Writer", "CommsPhone", "Connect", "ConnectivityStore", "ContentDeliveryManager", "Cortana", "DefaultStartLayout", "Drawboard", "Duolingo", "Eclipse Manager", "Feedback Hub", "Finance", "Flipboard", "FreshPaint", "Fresh Paint", "Get Help", "Get Office", "GetStarted", "Google Chrome", "Groove Music", "Groove Video", "iHeartRadio", "Maps", "Mail", "Mail", "March of Empires: War of Lords", "Messaging", "Microsoft Edge", "MicrosoftOfficeHub", "MicrosoftPowerBIForWindows", "Microsoft Power BI", "Microsoft Solitaire Collection", "MicrosoftStickyNotes", "Microsoft Store", "Microsoft Store", "Microsoft Sway", "Microsoft To-Do", "Microsoft Whiteboard", "Microsoft.Windows.ContentDeliveryManager", "Minecraft", "MinecraftUWP", "Mixed Reality Portal", "Mixed Reality Viewer", "Mobile Plans", "Money", "Movies & TV", "MSPaint", "Music", "My Office", "Network Speed Test", "News", "Notepad", "Office Lens", "OneConnect", "OneNote", "Paid Wi-Fi & Cellular", "Paint 3D", "Pandora", "People", "Phone", "Phone Companion", "Photos", "Plex", "Power BI", "Preinstalled", "Print 3D", "Remote Desktop", "Shazam", "SketchBook", "Skype", "SkypeApp", "Sports", "Spotify", "Stickies", "Sticky Notes", "Store", "Store", "SurfaceHub", "Sway", "TheNewYorkTimes.NYTCrossword", "Tips", "Twitter", "Video", "Voice Recorder", "Weather", "WindowsAlarms", "WindowsCalculator", "WindowsCamera", "windowscommunicationapps", "WindowsMaps", "WindowsSoundRecorder", "Xbox", "Zune Music", "Zune Video")
     #foreach ($app in $applist) {
     #    Pin-App -appname $app -unpin -start
     #    Pin-App -appname $app -unpin -taskbar
     #}
-    #Pin-App "Explorer" -pin -taskbar
-    #Pin-App "Microsoft Edge" -pin -taskbar
+    Pin-App "Explorer" -pin -taskbar
+    Pin-App "Microsoft Edge" -pin -taskbar
     $summary += "Unpinned apps from Start Menu for user: $Username"
 }
 function Invoke-UpinningApps {
     Write-Host "`n--- Unpinning apps from Start Menu and Taskbar for user: $Username ---"
+    $shellApp = New-Object -ComObject Shell.Application
+    $appsFolder = $shellApp.Namespace('shell:::{4234d49b-0245-4df3-b780-3893943456e1}')
     # Unpin matched items
-    $appsFolder = (New-Object -ComObject Shell.Application).Namespace('shell:::{4234d49b-0245-4df3-b780-3893943456e1}')
-    $items = $appsFolder.Items()
-
-    foreach ($item in $items) {
-        $appName = $item.Name
-        $matched = $false
-
-        foreach ($verb in $item.Verbs()) {
-            $cleanVerb = $verb.Name.Replace('&', '').Trim()
-            if ($verbSet -contains $cleanVerb) {
-                Write-Host "Unpinning '$appName' using verb '$cleanVerb'"
-                $verb.DoIt()
-                $matched = $true
+    $appsFolder.Items() | ForEach-Object {
+        $name = $_.Name
+        $verbs = $_.Verbs() | ForEach-Object { $_.Name.Replace('&','').Trim() }
+        $match = $verbs | Where-Object { $_ -in @('Unpin from Start','Unpin from taskbar') }
+        if ($match) {
+            foreach ($m in $match) {
+                Write-Host "Unpinning '$name' using verb '$m'"
+                $_.Verbs() | Where-Object { $_.Name -eq $m } | ForEach-Object { $_.DoIt() } -ErrorAction SilentlyContinue
+                $summary += "Unpinned '$name' using verb '$m'"
             }
-        }
-
-        if (-not $matched) {
-            Write-Host "No matching verb found for '$appName'. Skipping."
+        } else {
+            Write-Host "No matching verb found for '$name'. Skipping."
+            $summary += "No matching verb found for '$name'. Skipping."
         }
     }
 }
@@ -727,23 +721,35 @@ if (-not $WhatIf) {
 }
 #endregion
 
-#region Misc Performance
-Write-Host "`n--- Applying miscellaneous performance tweaks ---"
+#region Start Menu Tweaks
+Write-Host "`n--- Applying Start Menu optimizations ---"
 if (-not $WhatIf) {
-Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Serialize" -Name "StartupDelayInMSec" -NewValue 0 -Type "DWord"
-    Invoke-RegistryChange -Path "HKCU:\SOFTWARE\Microsoft\Personalization\Settings" -Name "AcceptedPrivacyPolicy" -NewValue 0 -Type "DWord"
-    Invoke-RegistryChange -Path "HKCU:\SOFTWARE\Microsoft\InputPersonalization" -Name "RestrictImplicitTextCollection" -NewValue 1 -Type "DWord"
-    Invoke-RegistryChange -Path "HKCU:\SOFTWARE\Microsoft\InputPersonalization" -Name "RestrictImplicitInkCollection" -NewValue 1 -Type "DWord"
-    Invoke-RegistryChange -Path "HKCU:\SOFTWARE\Microsoft\InputPersonalization\TrainedDataStore" -Name "HarvestContacts" -NewValue 0 -Type "DWord"
+    # Show more pins in the Start Menu
+    Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "Start_Layout" -NewValue 1 -Type "DWord"
 }
 #endregion
+
+#region Taskbar Tweaks
+Write-Host "`n--- Applying Taskbar optimizations ---"
+if (-not $WhatIf) {
+    # Modify Taskbar Glom Level (grouping of taskbar buttons)
+    #Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarGlomLevel" -NewValue 1 -Type "DWord"
+    # Disable Animations in the Taskbar
+    Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarAnimations" -NewValue 0 -Type "DWord"
+    # Remove Task View from the Taskbar
+    Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ShowTaskViewButton" -NewValue 0 -Type "DWord"
+    # Remove Search from the Taskbar
+    Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "SearchboxTaskbarMode" -NewValue 0 -Type "DWord"
+    # Remove Chat from the Taskbar
+    Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarMn" -NewValue 0 -Type "DWord"
+    # Remove Widgets from the Taskbar
+    Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarDa" -NewValue 0 -Type "DWord"
+}
 
 #region Personalization
 Write-Host "`n--- Applying personalization settings ---"
 if (-not $WhatIf) {
     Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes" -Name "Personalize" -NewValue 0 -Type "DWord"
-    #Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarGlomLevel" -NewValue 1 -Type "DWord"
-    Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarAnimations" -NewValue 0 -Type "DWord"
     Invoke-RegistryChange -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer" -Name "NoThemesTab" -NewValue 0 -Type "DWord"
     Invoke-RegistryChange -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer" -Name "NoSaveSettings" -NewValue 0 -Type "DWord"
 }
@@ -775,7 +781,8 @@ if (-not $WhatIf) {
     Invoke-RegistryChange -Path "HKCU:\Software\Policies\Microsoft\Windows\Explorer" -Name "NoUseStoreOpenWith" -NewValue 1 -Type "DWord"
     Invoke-RegistryChange -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "NoUseStoreOpenWith" -NewValue 1 -Type "DWord"
     Invoke-RegistryChange -Path "HKCU:\Software\Policies\Microsoft\Windows\Explorer" -Name "StartupDelayinMSec" -NewValue 1 -Type "DWord"
-    Invoke-RegistryChange -Path "HKCU:\Software\Policies\Microsoft\Windows\Explorer" -Name "WaitForIdleState " -NewValue 0 -Type "DWord"
+    Invoke-RegistryChange -Path "HKCU:\Software\Policies\Microsoft\Windows\Explorer" -Name "WaitForIdleState" -NewValue 0 -Type "DWord"
+    Invoke-RegistryChange -Path "HKCU:\Software\Policies\Microsoft\Windows\Explorer" -Name "DisableSearchBoxSuggestions" -NewValue 1 -Type "DWord"
     Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ShowSuperHidden" -NewValue 0 -Type "DWord"
     Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "Hidden" -NewValue 1 -Type "DWord"
     Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "HideFileExt" -NewValue 0 -Type "DWord"
@@ -786,10 +793,16 @@ if (-not $WhatIf) {
 #region Miscellaneous Tweaks
 Write-Host "`n--- Applying miscellaneous performance tweaks ---"
 if (-not $WhatIf) {
+    Invoke-RegistryChange -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Serialize" -Name "StartupDelayInMSec" -NewValue 0 -Type "DWord"
+    Invoke-RegistryChange -Path "HKCU:\SOFTWARE\Microsoft\Personalization\Settings" -Name "AcceptedPrivacyPolicy" -NewValue 0 -Type "DWord"
+    Invoke-RegistryChange -Path "HKCU:\SOFTWARE\Microsoft\InputPersonalization" -Name "RestrictImplicitTextCollection" -NewValue 1 -Type "DWord"
+    Invoke-RegistryChange -Path "HKCU:\SOFTWARE\Microsoft\InputPersonalization" -Name "RestrictImplicitInkCollection" -NewValue 1 -Type "DWord"
+    Invoke-RegistryChange -Path "HKCU:\SOFTWARE\Microsoft\InputPersonalization\TrainedDataStore" -Name "HarvestContacts" -NewValue 0 -Type "DWord"
     Invoke-RegistryChange -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games" -Name "GPU Priority" -NewValue 8 -Type "DWord"
-    Invoke-RegistryChange -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games" -Name "Priority " -NewValue 6 -Type "DWord"
+    Invoke-RegistryChange -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games" -Name "Priority" -NewValue 6 -Type "DWord"
     Invoke-RegistryChange -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games" -Name "Scheduling Category" -NewValue "High" -Type "String"
     Invoke-RegistryChange -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games" -Name "SFIO Priority" -NewValue "High" -Type "String"
+    Invoke-RegistryChange -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer" -Name "SettingsPageVisibility" -NewValue "hide:home" -Type "String"
 }
 #endregion
 
@@ -808,7 +821,7 @@ Invoke-WinUtilExplorerUpdate
 Invoke-PowerPlan
 #endregion
 
-# Save changes to the change log
+#region end of processing
 $changeMap | ConvertTo-Json -Depth 5 | Set-Content -Path $changeLogPath
 
 if ($WhatIf) { Write-Host "Dry run mode: no changes applied." }
@@ -844,3 +857,4 @@ if ($Summarize) {
     Write-Host "======================================" -ForegroundColor Yellow
 }
 Write-Host "`nLogs saved to:`n--> JSON: $($changeLogPath)`n--> Summary: $($summaryLogPath)`n--> Transcript: $($transcriptLogPath)" -ForegroundColor Green
+#endregion
